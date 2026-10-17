@@ -233,7 +233,7 @@ Any failure or a declined payment rolls everything back: cart, stock and coupon 
 
 ### 4.1 Performance
 
-Server-side cart and price calculation with bounded queries and pagination on admin lists; the sign-in path uses a salted password hash, which is CPU-heavy by design. A k6 load scenario (see [scale-test](../devops/scale-test.md)) measures throughput and p95 latency per replica count. Results of the run in GitHub Actions are in section 6.
+Server-side cart and price calculation with bounded queries and pagination on admin lists; the sign-in path uses a salted password hash, which is CPU-heavy by design. A k6 load scenario (see [scale-test](../devops/scale-test.md)) measures throughput and p95 latency per replica count. Measured results are in section 6: about 2.5 times the throughput with three replicas.
 
 ### 4.2 Availability
 
@@ -278,7 +278,21 @@ After green CI on `main`, `cd.yml` builds both images, scans them with Trivy (a 
 
 The **Scale test** workflow compares one API replica with several behind nginx, with k6 (80% sign-in, 20% browsing, each replica capped at 1 vCPU), then runs the consistency race. Method and caveats: [scale-test](../devops/scale-test.md).
 
-**Measured results: TEAM to paste from the workflow run summary once it has run** (replicas, requests per second, p95 latency, error rate, replicas that answered, consistency checks).
+Measured in GitHub Actions on 17 Oct 2026 (4 vCPU shared runner; PostgreSQL, nginx and k6 run on the same machine; 40 virtual users, 45 s per step):
+
+| API replicas | Requests/s | Sign-in p95 (ms) | Browse p95 (ms) | Error rate | Replicas that answered |
+|---|---|---|---|---|---|
+| 1 | 11 | 7087 | 8399 | 0.00% | 1 |
+| 2 | 22 | 3204 | 3342 | 0.00% | 2 |
+| 3 | 29 | 3811 | 3997 | 0.15% | 3 |
+
+Throughput rose x2.5 with three replicas and p95 latency roughly halved. A first run (1 and 3 replicas) gave 15 and 39 requests/s (x2.7), so the numbers vary between runs on shared hardware; the scaling trend is the evidence, not the absolute values. The gain from two to three replicas is smaller because the runner's four cores are shared with PostgreSQL, nginx and k6. A single replica saturates at about 11 requests/s because each is capped at one vCPU and sign-in hashing is CPU-bound. Scale-in to one replica left the platform healthy.
+
+Consistency race (30 customers, each sending the same checkout twice at once, for a dish with 20 units): exactly 20 orders created, 20 duplicate requests answered with the stored order, 20 requests rejected as sold out, stock exactly 0, no server error, all invariants held.
+
+Not demonstrated: auto-scaling (replicas are scaled by hand) and queue-based scaling (there is no message queue). See AISS-01 and AISS-06.
+
+First continuous-delivery run on this repository: images built and scanned (Trivy), pushed to GHCR, deployed to a throw-away staging stack, health check and 19-step smoke test passed, tags promoted: build 83 s, deploy and verify 50 s. The first attempt was stopped by the image scan on fixable Debian findings (perl) in the base image; the runtime images now apply OS security updates, which shows the gate working.
 
 ## 7. Lessons Learned
 
@@ -292,6 +306,6 @@ The **Scale test** workflow compares one API replica with several behind nginx, 
 
 1. Effort per member (section 2.3).
 2. Owners and dates for the architectural limitations (section 3.4).
-3. Measured scale-test results (section 6).
+3. Re-run the scale test before submission if you want fresh numbers (section 6).
 4. The team's own statement of why the architecture changed from the proposal (AD-01, AD-06).
 5. Copy this content into the official report template (`.docx`) before submission on 16 Nov.

@@ -8,6 +8,16 @@ Script: [`scripts/load/k6-platform.js`](../../scripts/load/k6-platform.js) (k6).
 2. **Scale-in.** The API is scaled back to one replica and must keep answering.
 3. **Consistency under a race.** Thirty customers each send the same checkout request twice, at once, for a dish with 20 units. Required: exactly 20 orders, every duplicate answered with the stored order, the rest rejected as sold out, stock exactly 0, no server error.
 
+## Latest results (GitHub Actions, 17 Oct 2026)
+
+| API replicas | Requests/s | Sign-in p95 (ms) | Browse p95 (ms) | Error rate | Replicas that answered |
+|---|---|---|---|---|---|
+| 1 | 11 | 7087 | 8399 | 0.00% | 1 |
+| 2 | 22 | 3204 | 3342 | 0.00% | 2 |
+| 3 | 29 | 3811 | 3997 | 0.15% | 3 |
+
+Consistency race: 20 orders created, 20 duplicates answered with the stored order, 20 rejected as sold out, stock 0, no server error. An earlier run with 1 and 3 replicas gave 15 and 39 requests/s: results vary on shared hardware.
+
 ## Design choices you should know about
 
 - Each replica is capped at **1 vCPU and 768 MB** in `docker-compose.scale.yml`, the way a managed container platform sizes a replica. Without a cap one container already uses every core of the host, and replicas on a single machine would show nothing.
