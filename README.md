@@ -18,6 +18,29 @@ JiKeDa lets customers, merchants, riders and administrators work on the same ord
 
 The full index is in [docs/README.md](docs/README.md).
 
+## Incremental microservice foundation
+
+The SWE5001 refactor is being added beside the working monolith so the current system remains available during migration. The foundation contains a YARP gateway plus empty Identity, Catalog, Order, and Fulfilment services. Business features are migrated in later pull requests.
+
+```bash
+docker compose -f docker-compose.microservices.yml up -d --build --wait
+node scripts/smoke/foundation-smoke.mjs
+docker compose -f docker-compose.microservices.yml down
+```
+
+Local endpoints:
+
+| Component | URL |
+|---|---|
+| Gateway | `http://localhost:5000` |
+| Identity | `http://localhost:5101` |
+| Catalog | `http://localhost:5102` |
+| Order | `http://localhost:5103` |
+| Fulfilment and Delivery | `http://localhost:5104` |
+| PostgreSQL | `localhost:5433` |
+
+Use `docker-compose.yml` for the original monolith and `docker-compose.microservices.yml` for the new foundation. The two stacks use different database ports and volumes. Service boundaries and initial request/event examples are documented in [the API contract](docs/api-contract.md) and `contracts/`.
+
 ## Architecture in one picture
 
 ```

@@ -1,5 +1,32 @@
 # 接口契约
 
+## SWE5001 微服务基础骨架
+
+本节只约定第一阶段的服务边界和联调入口，不代表业务接口已经完成。现有单体 API 在迁移期间继续保留；新功能逐步迁入以下服务，不允许新服务直接读取其他服务的数据库。
+
+### 本地地址与 Gateway 路由
+
+| 组件 | 本地地址 | Gateway 路由 |
+|---|---|---|
+| Gateway | `http://localhost:5000` | 单一外部入口 |
+| Identity | `http://localhost:5101` | `/api/auth/*`、`/api/accounts/*` |
+| Catalog | `http://localhost:5102` | `/api/catalog/*`、`/api/merchants/*` |
+| Order | `http://localhost:5103` | `/api/cart/*`、`/api/checkout/*`、`/api/orders/*` |
+| Fulfilment and Delivery | `http://localhost:5104` | `/api/fulfilment/*`、`/api/deliveries/*`、`/api/riders/*` |
+
+Gateway health 路由为 `/health/identity`、`/health/catalog`、`/health/order` 和 `/health/fulfilment`；Gateway 自身为 `/health`。业务前端完成迁移后只调用 Gateway，直接服务端口仅用于本地调试。
+
+### 数据库归属
+
+本地使用一个 PostgreSQL 容器和四个逻辑数据库：`identity_db`、`catalog_db`、`order_db`、`fulfilment_db`。每个服务只使用自己的连接字符串、DbContext 和迁移。现有单体 `takeout` 数据库在渐进迁移期间保持不变。
+
+### 第一批跨服务示例
+
+- Order 调用 Catalog 的库存预留和释放示例见 `contracts/catalog-reservation.example.md`。
+- Order 发布给 Fulfilment 的初始事件示例见 `contracts/events/order-confirmed.v1.example.json`。
+- Gateway 生成或转发 `X-Correlation-ID`。后续服务调用和事件应继续携带同一个值。
+- 示例用于帮助成员并行开发；字段需要调整时，相关成员在同一个 PR 中同步修改示例和实现即可。
+
 ## Sprint 3 — Member 3: Menu Factory and inventory
 
 The existing merchant dish endpoints retain their URLs and authorization rules.

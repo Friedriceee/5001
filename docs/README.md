@@ -21,6 +21,7 @@ How the practice module deliverables map to this repository.
 | Pipeline design, staging runbook, smoke tests | [devops/](devops/) |
 | Scale-out and consistency test | [devops/scale-test.md](devops/scale-test.md) |
 | Agile records (backlog, sprint plan, review, retrospective) | [agile/](agile/) |
+| SWE5001 refactor progress | [progress/](progress/) |
 | Per-story analysis and design | [analysis-design/](analysis-design/) |
 | Diagrams | [diagrams/](diagrams/) |
 

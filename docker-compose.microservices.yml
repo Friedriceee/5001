@@ -1,0 +1,102 @@
+# Incremental microservice foundation. The existing monolith compose file remains unchanged.
+#
+#   docker compose -f docker-compose.microservices.yml up -d --build --wait
+#   node scripts/smoke/foundation-smoke.mjs
+#   docker compose -f docker-compose.microservices.yml down
+#
+# Gateway: http://localhost:5000
+# Direct service ports are exposed for local debugging only.
+
+services:
+  foundation-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: platform_admin
+      POSTGRES_PASSWORD: ${FOUNDATION_DB_ADMIN_PASSWORD:-platform_local_only}
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - microservices-pgdata:/var/lib/postgresql/data
+      - ./scripts/postgres/init-microservice-databases.sql:/docker-entrypoint-initdb.d/10-create-service-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platform_admin -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  identity:
+    build: ./services/identity/JiKeDa.Identity.Api
+    image: jikeda-identity:foundation
+    depends_on:
+      foundation-db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Host=foundation-db;Port=5432;Database=identity_db;Username=identity_app;Password=identity_local_only"
+    ports:
+      - "5101:8080"
+    healthcheck: &service-healthcheck
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.0\r\n\r\n' >&3 && head -n1 <&3 | grep -q ' 200 '"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  catalog:
+    build: ./services/catalog/JiKeDa.Catalog.Api
+    image: jikeda-catalog:foundation
+    depends_on:
+      foundation-db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Host=foundation-db;Port=5432;Database=catalog_db;Username=catalog_app;Password=catalog_local_only"
+    ports:
+      - "5102:8080"
+    healthcheck: *service-healthcheck
+
+  order:
+    build: ./services/order/JiKeDa.Order.Api
+    image: jikeda-order:foundation
+    depends_on:
+      foundation-db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Host=foundation-db;Port=5432;Database=order_db;Username=order_app;Password=order_local_only"
+    ports:
+      - "5103:8080"
+    healthcheck: *service-healthcheck
+
+  fulfilment:
+    build: ./services/fulfilment/JiKeDa.Fulfilment.Api
+    image: jikeda-fulfilment:foundation
+    depends_on:
+      foundation-db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Host=foundation-db;Port=5432;Database=fulfilment_db;Username=fulfilment_app;Password=fulfilment_local_only"
+    ports:
+      - "5104:8080"
+    healthcheck: *service-healthcheck
+
+  gateway:
+    build: ./gateway/JiKeDa.Gateway
+    image: jikeda-gateway:foundation
+    depends_on:
+      identity:
+        condition: service_healthy
+      catalog:
+        condition: service_healthy
+      order:
+        condition: service_healthy
+      fulfilment:
+        condition: service_healthy
+    ports:
+      - "5000:8080"
+    healthcheck: *service-healthcheck
+
+volumes:
+  microservices-pgdata:

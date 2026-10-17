@@ -1,0 +1,19 @@
+{
+  "eventId": "event-001",
+  "eventType": "OrderConfirmed",
+  "eventVersion": 1,
+  "orderId": 1001,
+  "customerId": 12,
+  "items": [
+    {
+      "merchantId": 3,
+      "dishId": 10,
+      "dishName": "Campus Noodles",
+      "quantity": 2,
+      "unitPrice": 12.50
+    }
+  ],
+  "totalAmount": 25.00,
+  "occurredAt": "2026-10-18T10:00:00Z",
+  "correlationId": "trace-001"
+}
