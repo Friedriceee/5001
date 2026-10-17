@@ -1,0 +1,23 @@
+# Scale-out override: several API replicas behind the frontend's nginx.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.scale.yml --profile app up -d --wait
+#   docker compose -f docker-compose.yml -f docker-compose.scale.yml --profile app up -d --wait --no-recreate --scale api=3
+#
+# Start with one replica first (it runs the migrations and seeds the demo accounts), then scale.
+# Concurrent start-up migrations are not safe with EF Core 8; see AISS-02 in the project report.
+#
+# Each replica is capped at one vCPU and 768 MB, the way a managed container platform sizes a
+# replica. Without the cap one container already uses every core of the host, and adding
+# replicas on the same machine would show nothing.
+
+services:
+  api:
+    # No host port: replicas cannot share one, and clients reach the API through nginx on :8080.
+    ports: !reset []
+    environment:
+      Observability__InstanceHeader: "true"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M

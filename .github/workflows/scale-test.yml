@@ -1,0 +1,43 @@
+name: Scale test
+
+# Manual: builds the stack, then compares 1 and N API replicas under k6 load and runs a
+# consistency race. Results appear in the job summary and as an artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      replicas:
+        description: Replica counts to compare, space separated
+        default: '1 3'
+      vus:
+        description: Virtual users for the load run
+        default: '40'
+      duration:
+        description: Duration of each load run
+        default: '45s'
+
+permissions:
+  contents: read
+
+jobs:
+  scale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: grafana/setup-k6-action@v1
+      - name: Run the scale test
+        env:
+          REPLICAS: ${{ inputs.replicas }}
+          VUS: ${{ inputs.vus }}
+          DURATION: ${{ inputs.duration }}
+        run: bash scripts/load/run-scale-test.sh
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scale-test-results
+          path: load-results/
+          if-no-files-found: ignore

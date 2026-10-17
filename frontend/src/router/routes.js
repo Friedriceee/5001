@@ -1,0 +1,61 @@
+export const routes = [
+  { path: '/', name: 'home', component: () => import('@/views/HomeView.vue') },
+  { path: '/login', name: 'login', component: () => import('@/views/auth/LoginView.vue') },
+  { path: '/register', name: 'register', component: () => import('@/views/auth/RegisterView.vue') },
+  { path: '/register/merchant', name: 'register-merchant', component: () => import('@/views/auth/RegisterMerchantView.vue') },
+  { path: '/register/rider', name: 'register-rider', component: () => import('@/views/auth/RegisterRiderView.vue') },
+  {
+    path: '/admin',
+    name: 'admin-dashboard',
+    component: () => import('@/views/admin/AdminDashboardView.vue'),
+    meta: { requiresAuth: true, role: 'Administrator' },
+  },
+  {
+    path: '/merchant/orders',
+    name: 'merchant-orders',
+    component: () => import('@/views/merchant/MerchantOrdersView.vue'),
+    meta: { requiresAuth: true, role: 'Merchant' },
+  },
+  {
+    path: '/merchant/dishes',
+    name: 'merchant-dishes',
+    component: () => import('@/views/merchant/MerchantDishView.vue'),
+    meta: { requiresAuth: true, role: 'Merchant' },
+  },
+  {
+    path: '/merchant/special-offers',
+    name: 'merchant-special-offers',
+    component: () => import('@/views/merchant/MerchantSpecialOfferView.vue'),
+    meta: { requiresAuth: true, role: 'Merchant' },
+  },
+  {
+    path: '/user/orders',
+    name: 'user-orders',
+    component: () => import('@/views/user/OrderView.vue'),
+    meta: { requiresAuth: true, role: 'Customer' },
+  },
+  {
+    path: '/customer/merchants',
+    name: 'customer-merchants',
+    component: () => import('@/views/customer/MerchantBrowseView.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
+    path: '/customer/cart',
+    name: 'customer-cart',
+    component: () => import('@/views/customer/CustomerCartView.vue'),
+    meta: { requiresAuth: true, role: 'Customer' },
+  },
+  {
+    path: '/customer/checkout',
+    name: 'customer-checkout',
+    component: () => import('@/views/customer/CheckoutView.vue'),
+    meta: { requiresAuth: true, role: 'Customer' },
+  },
+  {
+    path: '/rider/deliveries',
+    name: 'rider-deliveries',
+    component: () => import('@/views/rider/RiderDeliveryView.vue'),
+    meta: { requiresAuth: true, role: 'Rider' },
+  },
+]
