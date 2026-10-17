@@ -16,6 +16,10 @@ RUN npm run build
 # ---- runtime --------------------------------------------------------------
 # Unprivileged nginx: runs as a non-root user and listens on 8080.
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+# Apply Alpine security fixes published after the base image was built (see backend/Dockerfile).
+USER root
+RUN apk upgrade --no-cache
+USER nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 8080

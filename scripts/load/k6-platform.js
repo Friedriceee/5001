@@ -59,6 +59,9 @@ export const options = SCENARIO === 'consistency'
       // of the run is to compare it with several. Errors are never acceptable.
       thresholds: {
         http_req_failed: ['rate<0.01'],
+        // Never-failing thresholds, present so k6 keeps these per-scenario latencies in its summary.
+        'http_req_duration{scenario:signin}': ['p(95)<3600000'],
+        'http_req_duration{scenario:browse}': ['p(95)<3600000'],
       },
     }
 

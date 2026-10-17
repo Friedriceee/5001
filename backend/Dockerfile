@@ -16,6 +16,12 @@ RUN dotnet publish src/TakeoutPlatform.Api/TakeoutPlatform.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
+# Apply Debian security fixes published after the base image was built. The image scan before
+# publishing fails on any HIGH or CRITICAL finding that has a fix, so a stale base must not block a release.
+RUN apt-get update \
+ && apt-get -y --no-install-recommends upgrade \
+ && rm -rf /var/lib/apt/lists/*
+
 ENV ASPNETCORE_URLS=http://+:8080 \
     DOTNET_EnableDiagnostics=0 \
     DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
