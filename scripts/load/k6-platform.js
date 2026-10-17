@@ -58,8 +58,6 @@ export const options = SCENARIO === 'consistency'
       // Latency is reported, not gated: a single replica is expected to saturate, and the point
       // of the run is to compare it with several. Errors are never acceptable.
       thresholds: {
-        'http_req_duration{scenario:browse}': ['p(95)<5000'],
-        'http_req_duration{scenario:signin}': ['p(95)<5000'],
         http_req_failed: ['rate<0.01'],
       },
     }
