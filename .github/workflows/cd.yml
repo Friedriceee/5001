@@ -109,7 +109,7 @@ jobs:
       # Fail the release on any fixable HIGH/CRITICAL vulnerability.
       - name: Scan API image (Trivy)
         if: steps.meta.outputs.build == 'true'
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.meta.outputs.registry }}/${{ env.IMAGE_API }}:${{ steps.meta.outputs.tag }}
           severity: HIGH,CRITICAL
@@ -119,7 +119,7 @@ jobs:
 
       - name: Scan frontend image (Trivy)
         if: steps.meta.outputs.build == 'true'
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.meta.outputs.registry }}/${{ env.IMAGE_FRONTEND }}:${{ steps.meta.outputs.tag }}
           severity: HIGH,CRITICAL
