@@ -1,0 +1,27 @@
+(application) {
+  encode zstd gzip
+  header {
+    X-Content-Type-Options nosniff
+    X-Frame-Options DENY
+    Referrer-Policy strict-origin-when-cross-origin
+    -Server
+  }
+  @api path /api/* /health /health/* /internal/*
+  handle @api {
+    reverse_proxy gateway:8080
+  }
+  handle {
+    root * /srv
+    try_files {path} /index.html
+    file_server
+  }
+}
+
+{$PUBLIC_HOST} {
+  import application
+}
+
+# Host-loopback diagnostic endpoint; not published by the Azure network rules.
+http://:8081 {
+  import application
+}

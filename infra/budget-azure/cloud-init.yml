@@ -1,0 +1,12 @@
+#cloud-config
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - python3
+  - docker.io
+  - docker-compose-v2
+runcmd:
+  - [systemctl, enable, --now, docker]
+  - [install, -d, -m, '0700', /opt/jikeda]

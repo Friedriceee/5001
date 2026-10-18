@@ -1,0 +1,126 @@
+name: jikeda5001-cloud
+
+x-service: &service
+  restart: unless-stopped
+  mem_limit: 512m
+  logging: &logging
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: '3'
+  healthcheck: &health
+    test: [CMD, bash, -c, "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.0\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q ' 200 '"]
+    interval: 10s
+    timeout: 5s
+    retries: 30
+    start_period: 30s
+
+x-env: &env
+  ASPNETCORE_ENVIRONMENT: Production
+  Jwt__Key: ${JWT_KEY:?Generate runtime.env first}
+  Jwt__Issuer: JiKeDa
+  Jwt__Audience: JiKeDa.Client
+
+services:
+  foundation-db:
+    image: postgres:16
+    restart: unless-stopped
+    mem_limit: 384m
+    logging: *logging
+    environment:
+      POSTGRES_USER: platform_admin
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:?}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?}
+      CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD:?}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:?}
+      FULFILMENT_DB_PASSWORD: ${FULFILMENT_DB_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-databases.sh:/docker-entrypoint-initdb.d/10-databases.sh:ro
+    healthcheck:
+      # TCP avoids reporting healthy during the entrypoint's temporary Unix-only server.
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U platform_admin -d postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  identity:
+    <<: *service
+    build: ../../services/identity/JiKeDa.Identity.Api
+    image: jikeda5001-cloud/identity:${SOURCE_REVISION:?}
+    depends_on:
+      foundation-db: {condition: service_healthy}
+    environment:
+      <<: *env
+      ConnectionStrings__Default: Host=foundation-db;Database=identity_db;Username=identity_app;Password=${IDENTITY_DB_PASSWORD:?}
+
+  catalog:
+    <<: *service
+    build: ../../services/catalog/JiKeDa.Catalog.Api
+    image: jikeda5001-cloud/catalog:${SOURCE_REVISION:?}
+    depends_on:
+      foundation-db: {condition: service_healthy}
+    environment:
+      <<: *env
+      ConnectionStrings__Default: Host=foundation-db;Database=catalog_db;Username=catalog_app;Password=${CATALOG_DB_PASSWORD:?}
+    ports: ['127.0.0.1::8080']
+
+  order:
+    <<: *service
+    build: ../../services/order/JiKeDa.Order.Api
+    image: jikeda5001-cloud/order:${SOURCE_REVISION:?}
+    depends_on:
+      foundation-db: {condition: service_healthy}
+      catalog: {condition: service_healthy}
+    environment:
+      <<: *env
+      ConnectionStrings__Default: Host=foundation-db;Database=order_db;Username=order_app;Password=${ORDER_DB_PASSWORD:?}
+      Services__CatalogBaseUrl: http://catalog:8080/
+    ports: ['127.0.0.1::8080']
+
+  fulfilment:
+    <<: *service
+    build: ../../services/fulfilment/JiKeDa.Fulfilment.Api
+    image: jikeda5001-cloud/fulfilment:${SOURCE_REVISION:?}
+    depends_on:
+      foundation-db: {condition: service_healthy}
+    environment:
+      <<: *env
+      ConnectionStrings__Default: Host=foundation-db;Database=fulfilment_db;Username=fulfilment_app;Password=${FULFILMENT_DB_PASSWORD:?}
+
+  gateway:
+    <<: *service
+    mem_limit: 192m
+    build: ../../gateway/JiKeDa.Gateway
+    image: jikeda5001-cloud/gateway:${SOURCE_REVISION:?}
+    depends_on:
+      identity: {condition: service_healthy}
+      catalog: {condition: service_healthy}
+      order: {condition: service_healthy}
+      fulfilment: {condition: service_healthy}
+    environment: *env
+    ports: ['127.0.0.1:5000:8080']
+
+  web:
+    build:
+      context: ../../frontend
+      dockerfile: ../deploy/budget-azure/frontend.Dockerfile
+    image: jikeda5001-cloud/web:${SOURCE_REVISION:?}
+    restart: unless-stopped
+    mem_limit: 128m
+    logging: *logging
+    depends_on:
+      gateway: {condition: service_healthy}
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?}
+    ports: ['80:80', '443:443', '127.0.0.1:8088:8081']
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  pgdata:
+  caddy-data:
+  caddy-config:
