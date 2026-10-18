@@ -79,9 +79,12 @@ services:
     depends_on:
       foundation-db:
         condition: service_healthy
+      order:
+        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Default: "Host=foundation-db;Port=5432;Database=fulfilment_db;Username=fulfilment_app;Password=fulfilment_local_only"
+      Services__OrderBaseUrl: "http://order:8080/"
     ports:
       - "5104:8080"
     healthcheck: *service-healthcheck
