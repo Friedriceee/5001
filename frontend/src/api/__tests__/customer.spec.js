@@ -24,6 +24,6 @@ describe('customer menu API', () => {
     http.get.mockResolvedValueOnce([{ id: 11, name: 'Noodles' }])
 
     await expect(listMerchantMenu(1)).resolves.toEqual([{ id: 11, name: 'Noodles' }])
-    expect(http.get).toHaveBeenCalledWith('/merchant/1/dishes')
+    expect(http.get).toHaveBeenCalledWith('/merchants/1/dishes')
   })
 })
