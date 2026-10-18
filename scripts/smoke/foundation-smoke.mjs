@@ -114,6 +114,49 @@ async function main() {
   }
   console.log(`catalog: stock ${dish.inventory} -> ${dish.inventory - 2} -> ${dish.inventory}`)
 
+  // ---- Order through the gateway: cart, checkout (reserves in Catalog), replay, decline ----
+  const stockOf = async () => (await request(new URL(`/api/catalog/dishes/${dish.id}`, gateway))).json.data.inventory
+  const checkout = (key, paymentMethod) => request(new URL('/api/checkout', gateway), {
+    method: 'POST',
+    headers: { ...auth, 'Idempotency-Key': key },
+    body: { addressId, needUtensils: 1, paymentMethod },
+  })
+
+  expectStatus(await request(new URL('/api/cart', gateway), { method: 'DELETE', headers: auth }), 200, 'order: clear cart')
+  const addresses = await request(new URL('/api/addresses', gateway), { headers: auth })
+  expectStatus(addresses, 200, 'order: list addresses')
+  const addressId = addresses.json.data[0]?.id
+  if (!addressId) throw new Error('customer1 has no delivery address.')
+
+  const before = await stockOf()
+  expectStatus(await request(new URL('/api/cart/items', gateway), { method: 'POST', headers: auth, body: { dishId: dish.id, quantity: 2 } }), 201, 'order: add to cart')
+  const key = `smoke-${Date.now()}`
+  const paid = await checkout(key, 'SimulatedCard')
+  expectStatus(paid, 201, 'order: checkout')
+  const orderId = paid.json.data.orderId
+  const replayed = await checkout(key, 'SimulatedCard')
+  expectStatus(replayed, 200, 'order: replayed checkout')
+  if (replayed.json.data.orderId !== orderId || !replayed.json.data.replayed) throw new Error('Replay must return the same order.')
+  if (await stockOf() !== before - 2) throw new Error('Checkout should reserve exactly 2 units in Catalog.')
+
+  const mine = await request(new URL('/api/orders', gateway), { headers: auth })
+  expectStatus(mine, 200, 'order: my orders')
+  if (!mine.json.data.some(o => o.id === orderId)) throw new Error(`Order ${orderId} is missing from my orders.`)
+
+  expectStatus(await request(new URL('/api/cart/items', gateway), { method: 'POST', headers: auth, body: { dishId: dish.id, quantity: 1 } }), 201, 'order: add to cart again')
+  const declined = await checkout(`smoke-declined-${Date.now()}`, 'SimulatedCardDeclined')
+  expectStatus(declined, 402, 'order: declined payment')
+  if (await stockOf() !== before - 2) throw new Error('A declined payment must release its reservation.')
+  expectStatus(await request(new URL('/api/cart', gateway), { method: 'DELETE', headers: auth }), 200, 'order: clear cart')
+
+  const orderService = new URL(process.env.JIKEDA_ORDER_URL || 'http://127.0.0.1:5103')
+  assertLocal(orderService, 'JIKEDA_ORDER_URL')
+  expectStatus(await request(new URL('/internal/order/events', gateway), { headers: auth }), 404, 'gateway does not expose order events')
+  const events = await request(new URL('/internal/order/events?after=0&limit=200', orderService), { headers: auth })
+  expectStatus(events, 200, 'order: event feed')
+  if (!events.json.data.some(e => e.payload.orderId === orderId)) throw new Error(`No OrderConfirmed event for order ${orderId}.`)
+  console.log(`order: order ${orderId} paid, stock ${before} -> ${before - 2}, decline released, OrderConfirmed published`)
+
   console.log('Microservice foundation smoke test passed.')
 }
 

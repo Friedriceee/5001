@@ -62,9 +62,13 @@ services:
     depends_on:
       foundation-db:
         condition: service_healthy
+      catalog:
+        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Default: "Host=foundation-db;Port=5432;Database=order_db;Username=order_app;Password=order_local_only"
+      # Internal calls go straight to Catalog inside the network, never through the gateway.
+      Services__CatalogBaseUrl: "http://catalog:8080/"
     ports:
       - "5103:8080"
     healthcheck: *service-healthcheck
