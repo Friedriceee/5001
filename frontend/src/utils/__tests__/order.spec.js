@@ -10,7 +10,9 @@ import {
 } from '@/utils/order'
 
 describe('order status helpers', () => {
-  it('maps status numbers to English text', () => {
+  it('maps Order service status names and legacy numbers to English text', () => {
+    expect(orderStatusText('Paid')).toBe('Paid')
+    expect(orderStatusText('Cancelled')).toBe('Cancelled')
     expect(orderStatusText(0)).toBe('Pending payment')
     expect(orderStatusText(1)).toBe('Paid')
     expect(orderStatusText(2)).toBe('Out for delivery')

@@ -20,7 +20,7 @@ function kitchenStatusText(status) {
     Preparing: 'Preparing',
     ReadyForDelivery: 'Ready for pickup',
     Rejected: 'Rejected',
-  }[status] ?? status
+  }[status] ?? status ?? '—'
 }
 
 function deliveryStatusText(order) {
@@ -75,7 +75,7 @@ onMounted(loadOrders)
       <el-table v-loading="loading" :data="orders" stripe>
         <el-table-column prop="id" label="Order ID" width="100" />
         <el-table-column label="Amount" width="130">
-          <template #default="scope">{{ formatYuan(scope.row.price) }}</template>
+          <template #default="scope">{{ formatYuan(scope.row.total ?? scope.row.price) }}</template>
         </el-table-column>
         <el-table-column label="Kitchen" width="150">
           <template #default="scope">{{ kitchenStatusText(scope.row.fulfillmentStatus) }}</template>

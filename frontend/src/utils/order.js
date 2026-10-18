@@ -5,6 +5,8 @@
 
 // Order status values match the backend OrderStatus enum.
 const STATUS_TEXT = {
+  Paid: 'Paid',
+  Cancelled: 'Cancelled',
   0: 'Pending payment',
   1: 'Paid',
   2: 'Out for delivery',
@@ -25,7 +27,7 @@ const STATUS_TEXT = {
  * @returns {string}
  */
 export function orderStatusText(status) {
-  return STATUS_TEXT[Number(status)] ?? 'Unknown status'
+  return STATUS_TEXT[status] ?? STATUS_TEXT[Number(status)] ?? 'Unknown status'
 }
 
 /**
