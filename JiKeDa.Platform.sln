@@ -25,6 +25,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fulfilment", "fulfilment", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JiKeDa.Fulfilment.Api", "services\fulfilment\JiKeDa.Fulfilment.Api\JiKeDa.Fulfilment.Api.csproj", "{BF6D7341-E88A-4382-8034-2704A1A80B40}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JiKeDa.Identity.Tests", "services\identity\JiKeDa.Identity.Tests\JiKeDa.Identity.Tests.csproj", "{61B6C228-10A6-4239-9505-476115A55E1E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -54,6 +56,10 @@ Global
 		{BF6D7341-E88A-4382-8034-2704A1A80B40}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BF6D7341-E88A-4382-8034-2704A1A80B40}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BF6D7341-E88A-4382-8034-2704A1A80B40}.Release|Any CPU.Build.0 = Release|Any CPU
+		{61B6C228-10A6-4239-9505-476115A55E1E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61B6C228-10A6-4239-9505-476115A55E1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61B6C228-10A6-4239-9505-476115A55E1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61B6C228-10A6-4239-9505-476115A55E1E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{582389A8-79F0-41BD-B908-76E4750F2199} = {E55FB370-8854-429A-9C5E-F5C7F4DF8757}
@@ -65,5 +71,6 @@ Global
 		{A0AB6536-E7E7-44DE-8CA1-7FC246C9AD43} = {052278B7-CBC8-48A3-9477-11CA0F152C89}
 		{E1F8B938-B870-4BB9-B7A2-1F58420C6F19} = {C85264E3-8ABD-4B59-B7D2-7680EFEAEF62}
 		{BF6D7341-E88A-4382-8034-2704A1A80B40} = {E1F8B938-B870-4BB9-B7A2-1F58420C6F19}
+		{61B6C228-10A6-4239-9505-476115A55E1E} = {E94EEBB2-BC1B-44E8-8705-AFCAF3F401E8}
 	EndGlobalSection
 EndGlobal
