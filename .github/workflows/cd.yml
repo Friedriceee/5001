@@ -67,15 +67,15 @@ jobs:
             echo "sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.meta.outputs.build == 'true'
         with:
           ref: ${{ steps.meta.outputs.sha }}
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         if: steps.meta.outputs.build == 'true'
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         if: steps.meta.outputs.build == 'true'
         with:
           registry: ghcr.io
@@ -86,7 +86,7 @@ jobs:
       # BEFORE anything is published. A failed scan means nothing reaches the registry.
       - name: Build API image
         if: steps.meta.outputs.build == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: backend
           load: true
@@ -96,7 +96,7 @@ jobs:
 
       - name: Build frontend image
         if: steps.meta.outputs.build == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: frontend
           load: true
@@ -156,11 +156,11 @@ jobs:
       STAGING_SMOKE_PASSWORD: ${{ secrets.STAGING_SMOKE_PASSWORD }}
       ROLLBACK_DRILL: ${{ github.event.inputs.rollback_drill }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -176,7 +176,7 @@ jobs:
           fi
           echo "Staging target: $(grep '^mode=' "$GITHUB_OUTPUT" | cut -d= -f2)"
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
