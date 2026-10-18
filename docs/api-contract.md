@@ -10,7 +10,7 @@
 |---|---|---|
 | Gateway | `http://localhost:5000` | 单一外部入口 |
 | Identity | `http://localhost:5101` | `/api/auth/*`、`/api/accounts/*` |
-| Catalog | `http://localhost:5102` | `/api/catalog/*`、`/api/merchants/*` |
+| Catalog | `http://localhost:5102` | `/api/catalog/*`、`/api/merchants/*`（`/internal/catalog/*` 不经 Gateway，仅服务间直连） |
 | Order | `http://localhost:5103` | `/api/cart/*`、`/api/checkout/*`、`/api/orders/*` |
 | Fulfilment and Delivery | `http://localhost:5104` | `/api/fulfilment/*`、`/api/deliveries/*`、`/api/riders/*` |
 
@@ -307,3 +307,45 @@ PUT /api/accounts/{accountId}/role        body: { "role": "Customer|Merchant|Rid
 | `merchant1` | Merchant | `Passw0rd!123` |
 | `rider1` | Rider | `Passw0rd!123` |
 | `customer1` | Customer | `Passw0rd!123` |
+
+## SWE5001 Catalog Service（member3）
+
+> 独立 Catalog 微服务（`services/catalog/JiKeDa.Catalog.Api`），拥有 `catalog_db`：商家资料、菜品、满减活动和库存预留台账。本地直连端口 `5102`。只验证 Identity 签发的 JWT（共享 `Jwt__Key`），不签发 token。
+>
+> 商家账号（Identity）的 `profile_id` 即 Catalog 的商家 `id`。种子数据与 Identity 对齐：`merchant1` → 商家 `1`（Demo Merchant），另有商家 `2`；菜品 `1`–`6`、满减 `1`–`2`。新建记录的 id 从 `1000` 开始，不会与种子冲突。
+
+### 公开查询（匿名，经 Gateway）
+```
+GET /api/merchants                              商家列表
+GET /api/merchants/{merchantId}                 商家详情
+GET /api/merchants/{merchantId}/dishes          商家菜单（含 isAvailable）
+GET /api/merchants/{merchantId}/special-offers  满减活动（只读）
+GET /api/catalog/dishes/{dishId}                单个菜品（购物车取价格用）
+```
+商家或菜品不存在返回 `404`。菜品字段与单体一致：`id`、`merchantId`、`name`、`price`、`category`、`imageUrl`、`inventory`、`itemType`（Standard/Bundle/Promotional）、`bundleSize`、`promotionStartsAtUtc`、`promotionEndsAtUtc`、`isAvailable`（有库存且在促销时间窗内）。
+
+### 商家菜品管理（仅 Merchant，经 Gateway）
+```
+GET    /api/catalog/merchant/dishes             本商家全部菜品
+POST   /api/catalog/merchant/dishes             新建，201
+PUT    /api/catalog/merchant/dishes/{dishId}    修改
+DELETE /api/catalog/merchant/dishes/{dishId}    删除
+```
+请求体与单体相同，但**不再接受 `merchantId`**：商家身份只取 JWT `profile_id`。匿名 `401`，非 Merchant `403`；菜品不存在或属于其他商家 `404`；校验失败 `400`（英文 message，菜单类型规则沿用 Menu Factory）；有预留记录的菜品不能删除，返回 `409`（可把库存改为 0 停售）。
+
+### 库存预留与释放（服务间内部接口，不经 Gateway）
+```
+POST /internal/catalog/reservations
+POST /internal/catalog/reservations/{reservationId}/release[?merchantId=]
+```
+- 调用方（Order）在 Compose 网络内访问 `http://catalog:8080`，并转发顾客的 `Authorization: Bearer`；无 token 返回 `401`。Gateway 没有 `/internal/*` 路由，外部请求返回 `404`。
+- `reservationId` 由调用方生成（建议用 checkout 的幂等键或订单号），1–64 位字母、数字或 `. _ : -`。
+- 一次预留内所有菜品要么全部成功，要么全部回滚。同一菜品多行会合并数量。
+- 成功 `201`；同一 `reservationId` 和相同菜品数量重放返回 `200` 且 `replayed: true`，不会重复扣减；同一 id 但菜品不同或已释放返回 `409`（`RESERVATION_CONFLICT`）。
+- 菜品不存在 `404`（`DISH_NOT_FOUND`）；库存不足 `400`（`INSUFFICIENT_STOCK`）；促销菜品不在时间窗内 `400`（`UNAVAILABLE`）。
+- 响应返回每行的 `merchantId`、`dishName`、`unitPrice`（预留时的价格快照）、`lineTotal` 和 `totalAmount`，Order 可直接用于建单和 `OrderConfirmed` 事件。
+- 释放：恢复所有未释放行的库存；带 `merchantId` 时只释放该商家的行（商家拒单）。重复释放不会重复恢复，返回 `200` 且 `alreadyReleased: true`；不存在返回 `404`。
+- 并发保证（PostgreSQL 测试覆盖）：库存扣减与检查在同一条 `UPDATE` 中完成，30 个并发请求抢 20 份库存恰好成功 20 个；同一 `reservationId` 并发重放只扣一次；数据库 `CHECK` 约束禁止负库存。
+
+### 暂不包含
+满减活动的增删改（仍在单体）、商家注册、菜品图片上传、把单体 `takeout` 库的历史数据迁入 `catalog_db`。
