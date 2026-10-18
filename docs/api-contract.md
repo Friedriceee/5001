@@ -391,6 +391,21 @@ GET /internal/order/events?after={lastId}&limit={1..200}     （不经 Gateway�
 ```
 按 id 递增返回 `OrderConfirmed` 事件，字段见 `contracts/events/order-confirmed.v1.example.json`（含 `addressId`、`needUtensils`、商品明细、`deliveryFee`、`totalAmount`、`correlationId`）。Fulfilment 记住处理过的最后一个 id 轮询即可；以后接入消息队列时，outbox 改为由 worker 发布，事件格式不变。
 
+### Fulfilment and Delivery（member5）
+
+Fulfilment 使用自己的 `fulfilment_db` 保存 `OrderConfirmed` 的只读投影、每个商家的履约状态、骑手资料和配送状态；绝不读取 Order、Catalog 或 Identity 的数据库。启动后的 worker 使用服务 JWT 轮询上面的内部事件 feed，并在同一事务内保存投影及最后处理的 event id，因此重试不会重复建单。
+
+| 路由（均经 Gateway） | 角色 | 说明 |
+|---|---|---|
+| `GET /api/fulfilment/orders` | Merchant | 当前商家的待处理/历史订单 |
+| `PUT /api/fulfilment/orders/{orderId}/status` | Merchant | `Accept` → `StartPreparing` → `MarkReady`；`Reject` 需要 `reason` |
+| `GET /api/riders/available` | Rider | 所有商家已备餐且尚未被认领的订单 |
+| `GET /api/riders/deliveries` | Rider | 当前骑手的配送任务 |
+| `POST /api/deliveries/{orderId}/accept` | Rider | 原子认领任务；重复认领返回 `409` |
+| `PUT /api/deliveries/{orderId}/status` | Rider | `PickUp` → `StartDelivering` → `Complete` |
+
+订单只有在全部商家 `MarkReady` 后才能被认领。骑手身份来自 JWT `profile_id`，服务只接受本人任务的状态操作。当前 `OrderConfirmed` 合同只提供 `addressId`，本地演示使用 `ZoneA`；在引入地址读取合同前，Fulfilment 不推断或复制住址详情。
+
 ### 测试
 SQLite 上 18 个接口测试（使用与 Catalog 规则一致的内存 Catalog 替身，可模拟宕机和释放失败），PostgreSQL 上 3 个并发测试：10 个相同 key 并发只产生 1 个订单、只预留 1 次；8 个不同 key 抢同一购物车和一次性优惠券，只有 1 单成功，其余预留全部释放，优惠券只扣一次。
 
