@@ -64,14 +64,17 @@ if (!string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Default"))
     db.Database.Migrate();
     // Migrations deliberately contain schema only. This demo profile must match Identity's rider1
     // profile_id and is inserted here so the migration remains provider-self-contained.
-    if (!db.Riders.Any(rider => rider.Id == 1))
+    var demoRiders = new[]
     {
-        db.Riders.Add(new JiKeDa.Fulfilment.Api.Features.Rider
-        {
-            Id = 1, Name = "Rider One", Zone = "ZoneA", IsActive = true, IsAvailable = true, Capacity = 3,
-        });
-        db.SaveChanges();
+        new JiKeDa.Fulfilment.Api.Features.Rider { Id = 1, Name = "Rider One", Zone = "ZoneA", IsActive = true, IsAvailable = true, Capacity = 3 },
+        new JiKeDa.Fulfilment.Api.Features.Rider { Id = 2, Name = "Rider Two", Zone = "ZoneA", IsActive = true, IsAvailable = true, Capacity = 3 },
+    };
+    foreach (var rider in demoRiders.Where(candidate => !db.Riders.Any(existing => existing.Id == candidate.Id)))
+    {
+        db.Riders.Add(rider);
     }
+    if (db.ChangeTracker.HasChanges())
+        db.SaveChanges();
 }
 
 if (app.Environment.IsDevelopment())

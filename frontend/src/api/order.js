@@ -5,8 +5,8 @@ export function createOrder(payload) {
   return http.post('/orders', payload)
 }
 
-export function listOrders(userId) {
-  return http.get(`/orders/user/${userId}`)
+export function listOrders() {
+  return http.get('/orders')
 }
 
 export function cancelOrder(orderId) {
@@ -15,9 +15,9 @@ export function cancelOrder(orderId) {
 
 // ---------- 地址 ----------
 export function createAddress(payload) {
-  return http.post('/user/addresses', payload)
+  return http.post('/addresses', payload)
 }
 
-export function listAddresses(userId) {
-  return http.get(`/user/${userId}/addresses`)
+export function listAddresses() {
+  return http.get('/addresses')
 }

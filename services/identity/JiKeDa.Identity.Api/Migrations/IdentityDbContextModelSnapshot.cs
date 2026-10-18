@@ -113,6 +113,28 @@ namespace JiKeDa.Identity.Api.Migrations
                             ProfileId = 1,
                             Role = "Customer",
                             Username = "customer1"
+                        },
+                        new
+                        {
+                            Id = 1004,
+                            CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            NormalizedUsername = "MERCHANT2",
+                            PasswordHash = "AQAAAAIAAYagAAAAEN7+2J+E29U2utsYYga5BWLdWDID66KndU9LQsHZURyttKcEeg9HGwBXkt1Sl9dtpA==",
+                            ProfileId = 2,
+                            Role = "Merchant",
+                            Username = "merchant2"
+                        },
+                        new
+                        {
+                            Id = 1005,
+                            CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            NormalizedUsername = "RIDER2",
+                            PasswordHash = "AQAAAAIAAYagAAAAEN7+2J+E29U2utsYYga5BWLdWDID66KndU9LQsHZURyttKcEeg9HGwBXkt1Sl9dtpA==",
+                            ProfileId = 2,
+                            Role = "Rider",
+                            Username = "rider2"
                         });
                 });
 

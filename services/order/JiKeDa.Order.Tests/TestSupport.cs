@@ -122,6 +122,18 @@ public sealed class FakeCatalog : ICatalogClient
         new(id, lines, lines.Sum(l => l.LineTotal), replayed);
 }
 
+public sealed class FakeFulfilmentStatus : IFulfilmentStatusClient
+{
+    public Dictionary<int, string> Statuses { get; } = new();
+
+    public Task<IReadOnlyDictionary<int, string>> GetStatusesAsync(
+        IReadOnlyCollection<int> orderIds,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<int, string>>(Statuses
+            .Where(item => orderIds.Contains(item.Key))
+            .ToDictionary(item => item.Key, item => item.Value));
+}
+
 /// <summary>Runs the Order API in memory with the fake Catalog, on SQLite or (when given) PostgreSQL.</summary>
 public sealed class ApiTestFactory : WebApplicationFactory<Program>
 {
@@ -130,6 +142,7 @@ public sealed class ApiTestFactory : WebApplicationFactory<Program>
     private readonly string? _postgres;
 
     public FakeCatalog Catalog { get; } = new();
+    public FakeFulfilmentStatus Fulfilment { get; } = new();
 
     public ApiTestFactory(string? postgresConnectionString = null)
     {
@@ -157,6 +170,8 @@ public sealed class ApiTestFactory : WebApplicationFactory<Program>
             });
             services.RemoveAll<ICatalogClient>();
             services.AddSingleton<ICatalogClient>(Catalog);
+            services.RemoveAll<IFulfilmentStatusClient>();
+            services.AddSingleton<IFulfilmentStatusClient>(Fulfilment);
         });
     }
 

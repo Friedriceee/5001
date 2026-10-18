@@ -14,7 +14,8 @@ using Microsoft.IdentityModel.Tokens;
 namespace JiKeDa.Fulfilment.Api.Events;
 
 public sealed record OrderEvent(long Id, string Type, JsonElement Payload);
-public sealed record OrderConfirmedEvent(int OrderId, int CustomerId, int AddressId, int NeedUtensils,
+public sealed record OrderConfirmedAddress(string ContactName, string PhoneNumber, string Address, string? HouseNumber);
+public sealed record OrderConfirmedEvent(int OrderId, int CustomerId, int AddressId, OrderConfirmedAddress? DeliveryAddress, int NeedUtensils,
     IReadOnlyList<OrderConfirmedLine> Items, decimal DeliveryFee, decimal TotalAmount, DateTime OccurredAt, string? CorrelationId);
 public sealed record OrderConfirmedLine(int MerchantId, int DishId, string DishName, int Quantity, decimal UnitPrice);
 
@@ -90,6 +91,10 @@ public sealed class OrderEventConsumer(FulfilmentDbContext db, IOrderEventClient
                 db.Orders.Add(new FulfilmentOrder
                 {
                     ExternalOrderId = order.OrderId, CustomerId = order.CustomerId, AddressId = order.AddressId,
+                    ContactName = order.DeliveryAddress?.ContactName,
+                    PhoneNumber = order.DeliveryAddress?.PhoneNumber,
+                    DeliveryAddress = order.DeliveryAddress?.Address,
+                    HouseNumber = order.DeliveryAddress?.HouseNumber,
                     NeedUtensils = order.NeedUtensils, DeliveryFee = order.DeliveryFee, TotalAmount = order.TotalAmount,
                     CorrelationId = order.CorrelationId, OccurredAtUtc = DateTime.SpecifyKind(order.OccurredAt, DateTimeKind.Utc),
                     Lines = order.Items.Select(i => new FulfilmentLine { MerchantId = i.MerchantId, DishId = i.DishId, DishName = i.DishName, Quantity = i.Quantity, UnitPrice = i.UnitPrice }).ToList(),

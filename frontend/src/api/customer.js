@@ -5,5 +5,5 @@ export function listMerchants() {
 }
 
 export function listMerchantMenu(merchantId) {
-  return http.get(`/merchant/${merchantId}/dishes`)
+  return http.get(`/merchants/${merchantId}/dishes`)
 }

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using JiKeDa.Order.Api.Common;
+using JiKeDa.Order.Api.Clients;
 using JiKeDa.Order.Api.Data;
 using JiKeDa.Order.Api.Features.Checkout;
 using JiKeDa.Order.Api.Features.Outbox;
@@ -15,8 +16,15 @@ namespace JiKeDa.Order.Api.Features.Orders;
 public sealed class OrdersController : ControllerBase
 {
     private readonly OrderDbContext _db;
+    private readonly IFulfilmentStatusClient _fulfilment;
+    private readonly ILogger<OrdersController> _logger;
 
-    public OrdersController(OrderDbContext db) => _db = db;
+    public OrdersController(OrderDbContext db, IFulfilmentStatusClient fulfilment, ILogger<OrdersController> logger)
+    {
+        _db = db;
+        _fulfilment = fulfilment;
+        _logger = logger;
+    }
 
     [HttpGet]
     public async Task<ActionResult<ApiResult<IReadOnlyList<OrderResponse>>>> Mine(CancellationToken cancellationToken)
@@ -25,7 +33,9 @@ public sealed class OrdersController : ControllerBase
         var orders = await _db.Orders.AsNoTracking().Include(o => o.Lines)
             .Where(o => o.CustomerId == customerId).OrderByDescending(o => o.Id).Take(100)
             .ToListAsync(cancellationToken);
-        return Ok(ApiResult<IReadOnlyList<OrderResponse>>.Ok(orders.Select(OrderResponse.From).ToList()));
+        var statuses = await ReadStatusesAsync(orders.Select(order => order.Id).ToArray(), cancellationToken);
+        return Ok(ApiResult<IReadOnlyList<OrderResponse>>.Ok(orders
+            .Select(order => OrderResponse.From(order, statuses.GetValueOrDefault(order.Id))).ToList()));
     }
 
     [HttpGet("{orderId:int}")]
@@ -36,7 +46,26 @@ public sealed class OrdersController : ControllerBase
             .SingleOrDefaultAsync(o => o.Id == orderId && o.CustomerId == customerId, cancellationToken);
         return order is null
             ? NotFound(ApiResult<OrderResponse>.Fail("Order was not found."))
-            : Ok(ApiResult<OrderResponse>.Ok(OrderResponse.From(order)));
+            : Ok(ApiResult<OrderResponse>.Ok(OrderResponse.From(
+                order,
+                (await ReadStatusesAsync([order.Id], cancellationToken)).GetValueOrDefault(order.Id))));
+    }
+
+    private async Task<IReadOnlyDictionary<int, string>> ReadStatusesAsync(
+        IReadOnlyCollection<int> orderIds,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _fulfilment.GetStatusesAsync(orderIds, cancellationToken);
+        }
+        catch (Exception error) when (error is HttpRequestException or TaskCanceledException)
+        {
+            // Order history remains available during a temporary Fulfilment outage. The persisted
+            // payment status is the safe fallback and the next refresh will show the newer state.
+            _logger.LogWarning(error, "Fulfilment status is unavailable; returning persisted order status.");
+            return new Dictionary<int, string>();
+        }
     }
 }
 

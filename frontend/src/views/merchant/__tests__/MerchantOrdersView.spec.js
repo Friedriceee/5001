@@ -20,15 +20,12 @@ vi.mock('element-plus', () => ({
 
 const confirmedOrder = {
   orderId: 42,
-  merchantId: 5,
-  customerId: 9,
-  orderTimestamp: '2026-10-10T08:00:00Z',
+  addressId: 1,
+  orderedAtUtc: '2026-10-10T08:00:00Z',
   status: 'Confirmed',
-  overallStatus: 'Paid',
-  rejectionReason: null,
-  merchantSubtotal: 30,
-  itemCount: 2,
-  items: [{ dishId: 7, dishName: 'Green Curry', unitPrice: 15, quantity: 2, lineTotal: 30 }],
+  overallStatus: 'AwaitingMerchant',
+  totalAmount: 35,
+  items: [{ dishId: 7, dishName: 'Green Curry', unitPrice: 15, quantity: 2 }],
 }
 
 const stubs = {
@@ -84,7 +81,6 @@ describe('MerchantOrdersView', () => {
     mocks.transitionMerchantOrder.mockResolvedValue({
       ...confirmedOrder,
       status: 'Rejected',
-      rejectionReason: 'Ingredient unavailable.',
     })
     const wrapper = shallowMount(MerchantOrdersView, {
       global: { stubs, directives: { loading: () => {} } },
@@ -95,20 +91,19 @@ describe('MerchantOrdersView', () => {
     await flushPromises()
 
     expect(mocks.transitionMerchantOrder).toHaveBeenCalledWith(42, 'Reject', 'Ingredient unavailable.')
-    expect(wrapper.text()).toContain('Ingredient unavailable.')
+    expect(wrapper.text()).toContain('This restaurant rejected the order.')
   })
 
-  it('distinguishes another restaurant still preparing from a courier wait', async () => {
+  it('shows the latest delivery state after this restaurant is ready', async () => {
     mocks.listMerchantOrders.mockResolvedValue([
-      { ...confirmedOrder, orderId: 43, status: 'ReadyForDelivery', overallStatus: 'Paid' },
-      { ...confirmedOrder, orderId: 44, status: 'ReadyForDelivery', overallStatus: 'ReadyForDelivery' },
+      { ...confirmedOrder, orderId: 43, status: 'ReadyForDelivery', overallStatus: 'Completed' },
     ])
     const wrapper = shallowMount(MerchantOrdersView, {
       global: { stubs, directives: { loading: () => {} } },
     })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Waiting for other restaurants')
-    expect(wrapper.text()).toContain('Waiting for a courier')
+    expect(wrapper.text()).toContain('Completed')
+    expect(wrapper.text()).toContain('Delivery completed.')
   })
 })

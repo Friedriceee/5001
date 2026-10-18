@@ -36,7 +36,9 @@ public sealed class IdentityDbContext : DbContext
                 new Account { Id = 1000, Username = "admin", NormalizedUsername = "ADMIN", PasswordHash = demoHash, Role = AccountRole.Administrator, ProfileId = 0, CreatedAtUtc = seedTime, IsActive = true },
                 new Account { Id = 1001, Username = "merchant1", NormalizedUsername = "MERCHANT1", PasswordHash = demoHash, Role = AccountRole.Merchant, ProfileId = 1, CreatedAtUtc = seedTime, IsActive = true },
                 new Account { Id = 1002, Username = "rider1", NormalizedUsername = "RIDER1", PasswordHash = demoHash, Role = AccountRole.Rider, ProfileId = 1, CreatedAtUtc = seedTime, IsActive = true },
-                new Account { Id = 1003, Username = "customer1", NormalizedUsername = "CUSTOMER1", PasswordHash = demoHash, Role = AccountRole.Customer, ProfileId = 1, CreatedAtUtc = seedTime, IsActive = true });
+                new Account { Id = 1003, Username = "customer1", NormalizedUsername = "CUSTOMER1", PasswordHash = demoHash, Role = AccountRole.Customer, ProfileId = 1, CreatedAtUtc = seedTime, IsActive = true },
+                new Account { Id = 1004, Username = "merchant2", NormalizedUsername = "MERCHANT2", PasswordHash = demoHash, Role = AccountRole.Merchant, ProfileId = 2, CreatedAtUtc = seedTime, IsActive = true },
+                new Account { Id = 1005, Username = "rider2", NormalizedUsername = "RIDER2", PasswordHash = demoHash, Role = AccountRole.Rider, ProfileId = 2, CreatedAtUtc = seedTime, IsActive = true });
         });
 
         modelBuilder.Entity<UserProfile>(entity =>

@@ -21,5 +21,11 @@ USER root
 RUN apk upgrade --no-cache
 USER nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# The original monolith stack uses `api`; the microservice stack overrides this
+# build argument with `gateway` while keeping one frontend image definition.
+ARG API_UPSTREAM=api
+USER root
+RUN sed -i "s#http://api:8080#http://${API_UPSTREAM}:8080#" /etc/nginx/conf.d/default.conf
+USER nginx
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 8080

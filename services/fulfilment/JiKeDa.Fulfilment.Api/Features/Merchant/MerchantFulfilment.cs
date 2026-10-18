@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace JiKeDa.Fulfilment.Api.Features.Merchant;
 
-public sealed record MerchantOrderResponse(int OrderId, string Status, int AddressId, int NeedUtensils,
+public sealed record MerchantOrderResponse(int OrderId, string Status, string OverallStatus, int AddressId, int NeedUtensils,
     decimal TotalAmount, DateTime OrderedAtUtc, IReadOnlyList<MerchantOrderLineResponse> Items);
 public sealed record MerchantOrderLineResponse(int DishId, string DishName, int Quantity, decimal UnitPrice);
 public sealed class MerchantActionRequest
@@ -69,7 +69,7 @@ public sealed class MerchantFulfilmentService(FulfilmentDbContext db, TimeProvid
             _ => false,
         };
 
-    private static MerchantOrderResponse ToResponse(MerchantOrderFulfilment work) => new(work.Order.ExternalOrderId, work.Status.ToString(),
+    private static MerchantOrderResponse ToResponse(MerchantOrderFulfilment work) => new(work.Order.ExternalOrderId, work.Status.ToString(), work.Order.Status.ToString(),
         work.Order.AddressId, work.Order.NeedUtensils, work.Order.TotalAmount, work.Order.OccurredAtUtc,
         work.Order.Lines.Where(l => l.MerchantId == work.MerchantId).OrderBy(l => l.DishId)
             .Select(l => new MerchantOrderLineResponse(l.DishId, l.DishName, l.Quantity, l.UnitPrice)).ToList());
