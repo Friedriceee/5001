@@ -23,7 +23,12 @@ public sealed class FulfilmentFlowTests
         _connection = new SqliteConnection("Data Source=:memory:");
         await _connection.OpenAsync();
         _db = new FulfilmentDbContext(new DbContextOptionsBuilder<FulfilmentDbContext>().UseSqlite(_connection).Options);
-        await _db.Database.EnsureCreatedAsync();
+        await _db.Database.MigrateAsync();
+        if (!await _db.Riders.AnyAsync(rider => rider.Id == 1))
+        {
+            _db.Riders.Add(new Rider { Id = 1, Name = "Rider One", Zone = "ZoneA", Capacity = 3 });
+            await _db.SaveChangesAsync();
+        }
         _events = new FakeOrderEvents();
     }
 

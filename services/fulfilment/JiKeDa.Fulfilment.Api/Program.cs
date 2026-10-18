@@ -60,7 +60,18 @@ var app = builder.Build();
 if (!string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Default")))
 {
     using var scope = app.Services.CreateScope();
-    scope.ServiceProvider.GetRequiredService<FulfilmentDbContext>().Database.Migrate();
+    var db = scope.ServiceProvider.GetRequiredService<FulfilmentDbContext>();
+    db.Database.Migrate();
+    // Migrations deliberately contain schema only. This demo profile must match Identity's rider1
+    // profile_id and is inserted here so the migration remains provider-self-contained.
+    if (!db.Riders.Any(rider => rider.Id == 1))
+    {
+        db.Riders.Add(new JiKeDa.Fulfilment.Api.Features.Rider
+        {
+            Id = 1, Name = "Rider One", Zone = "ZoneA", IsActive = true, IsAvailable = true, Capacity = 3,
+        });
+        db.SaveChanges();
+    }
 }
 
 if (app.Environment.IsDevelopment())
