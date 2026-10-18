@@ -54,11 +54,11 @@ export const useCartStore = defineStore('cart', () => {
 
   async function addItem(dish) {
     const dishId = dish.id ?? dish.dishId
-    applyCart(await addCartItem({ dishId, dishNum: 1 }))
+    applyCart(await addCartItem({ dishId, quantity: 1 }))
   }
 
-  async function setQuantity(cartItemId, dishNum) {
-    applyCart(await updateCartItem(cartItemId, { dishNum: Number(dishNum) }))
+  async function setQuantity(cartItemId, quantity) {
+    applyCart(await updateCartItem(cartItemId, { quantity: Number(quantity) }))
   }
 
   async function removeItem(cartItemId) {

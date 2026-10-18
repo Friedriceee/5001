@@ -113,6 +113,18 @@ public sealed class OrderEndpointTests
     }
 
     [Test]
+    public async Task Customer_order_history_uses_the_latest_fulfilment_status()
+    {
+        await AddToCart(1, 1);
+        var placed = (await (await _customer.CheckoutAsync("key-status-0001", Body())).ReadResultAsync<CheckoutResponse>()).Data!;
+        _factory.Fulfilment.Statuses[placed.OrderId] = "Completed";
+
+        var mine = (await (await _customer.GetAsync("/api/orders")).ReadResultAsync<List<OrderResponse>>()).Data!;
+
+        Assert.That(mine.Single(order => order.Id == placed.OrderId).Status, Is.EqualTo("Completed"));
+    }
+
+    [Test]
     public async Task A_retried_checkout_returns_the_same_order_without_reserving_again()
     {
         await AddToCart(1, 2);

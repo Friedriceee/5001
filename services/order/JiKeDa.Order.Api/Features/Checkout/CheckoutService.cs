@@ -137,7 +137,9 @@ public sealed class CheckoutService
         CancellationToken cancellationToken)
     {
         var customerId = attempt.CustomerId;
-        if (!await _db.Addresses.AsNoTracking().AnyAsync(a => a.Id == request.AddressId && a.CustomerId == customerId, cancellationToken))
+        var deliveryAddress = await _db.Addresses.AsNoTracking()
+            .SingleOrDefaultAsync(a => a.Id == request.AddressId && a.CustomerId == customerId, cancellationToken);
+        if (deliveryAddress is null)
             return Fail(CheckoutOutcome.AddressNotFound, "Delivery address was not found.");
 
         var cart = await _db.CartItems.AsNoTracking().Where(c => c.CustomerId == customerId).OrderBy(c => c.Id).ToListAsync(cancellationToken);
@@ -221,6 +223,13 @@ public sealed class CheckoutService
                 orderId = order.Id,
                 customerId,
                 addressId = order.AddressId,
+                deliveryAddress = new
+                {
+                    deliveryAddress.ContactName,
+                    deliveryAddress.PhoneNumber,
+                    deliveryAddress.Address,
+                    deliveryAddress.HouseNumber,
+                },
                 needUtensils = order.NeedUtensils,
                 items = order.Lines.Select(l => new { merchantId = l.MerchantId, dishId = l.DishId, dishName = l.DishName, quantity = l.Quantity, unitPrice = l.UnitPrice }),
                 deliveryFee = order.DeliveryFee,

@@ -9,10 +9,11 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/api/admin', () => mocks)
-vi.mock('element-plus', () => ({ ElMessage: { success: mocks.success } }))
+vi.mock('element-plus', () => ({ ElMessage: { success: mocks.success, warning: vi.fn() } }))
 
 const stubs = {
   'el-button': { template: '<button><slot/></button>' },
+  'el-card': { template: '<section><slot/></section>' },
   'el-tabs': { template: '<div><slot/></div>' },
   'el-tab-pane': { props: ['label'], template: '<section><h2>{{ label }}</h2><slot/></section>' },
   'el-table': { template: '<div><slot/></div>' },
@@ -36,10 +37,9 @@ describe('AdminDashboardView', () => {
     mocks.listAdminCoupons.mockResolvedValue([])
     mocks.listCouponAllocations.mockResolvedValue([])
     mocks.listAdminOrders.mockResolvedValue({ items: [], totalCount: 0 })
-    mocks.listAuditLogs.mockResolvedValue({ items: [], totalCount: 0 })
   })
 
-  it('loads all administrator resources and presents the console in English', async () => {
+  it('loads accounts, coupons and orders without exposing the unmigrated audit tab', async () => {
     const wrapper = shallowMount(AdminDashboardView, {
       global: { stubs, directives: { loading: () => {} } },
     })
@@ -47,14 +47,10 @@ describe('AdminDashboardView', () => {
 
     expect(mocks.listAdminAccounts).toHaveBeenCalledOnce()
     expect(mocks.listAdminCoupons).toHaveBeenCalledOnce()
-    expect(mocks.listCouponAllocations).toHaveBeenCalledOnce()
     expect(mocks.listAdminOrders).toHaveBeenCalledOnce()
-    expect(mocks.listAuditLogs).toHaveBeenCalledOnce()
-    expect(wrapper.text()).toContain('Operations console')
     expect(wrapper.text()).toContain('Accounts')
     expect(wrapper.text()).toContain('Coupons')
     expect(wrapper.text()).toContain('Orders')
-    expect(wrapper.text()).toContain('Audit logs')
-    expect(wrapper.text()).toContain('Audit records are append-only')
+    expect(wrapper.text()).not.toContain('Audit logs')
   })
 })

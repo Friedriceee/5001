@@ -67,6 +67,17 @@ builder.Services.AddScoped<IPasswordHasher<Account>, PasswordHasher<Account>>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<AccountService>();
+builder.Services.AddScoped<ExternalRegistrationService>();
+builder.Services.AddHttpClient<IMerchantProfileClient, MerchantProfileClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Services:CatalogBaseUrl"] ?? "http://catalog:8080/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHttpClient<IRiderProfileClient, RiderProfileClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Services:FulfilmentBaseUrl"] ?? "http://fulfilment:8080/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 var app = builder.Build();
 

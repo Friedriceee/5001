@@ -22,6 +22,10 @@ public sealed class FulfilmentDbContext(DbContextOptions<FulfilmentDbContext> op
             entity.Property(o => o.Status).HasConversion<string>().HasMaxLength(32);
             entity.Property(o => o.TotalAmount).HasPrecision(18, 2);
             entity.Property(o => o.CorrelationId).HasMaxLength(128);
+            entity.Property(o => o.ContactName).HasMaxLength(50);
+            entity.Property(o => o.PhoneNumber).HasMaxLength(20);
+            entity.Property(o => o.DeliveryAddress).HasMaxLength(255);
+            entity.Property(o => o.HouseNumber).HasMaxLength(50);
             entity.HasMany(o => o.Lines).WithOne(l => l.Order).HasForeignKey(l => l.OrderId).OnDelete(DeleteBehavior.Cascade);
             entity.HasMany(o => o.MerchantFulfilments).WithOne(f => f.Order).HasForeignKey(f => f.OrderId).OnDelete(DeleteBehavior.Cascade);
         });

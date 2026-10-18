@@ -17,6 +17,16 @@ const STATUS_TEXT = {
   9: 'Completed',
   10: 'Rejected',
   11: 'Cancelled',
+  Paid: 'Paid',
+  AwaitingMerchant: 'Waiting for restaurant',
+  Preparing: 'Preparing',
+  ReadyForDelivery: 'Ready for pickup',
+  Assigned: 'Courier assigned',
+  PickedUp: 'Picked up',
+  Delivering: 'Out for delivery',
+  Completed: 'Completed',
+  Rejected: 'Rejected',
+  Cancelled: 'Cancelled',
 }
 
 /**
@@ -25,7 +35,7 @@ const STATUS_TEXT = {
  * @returns {string}
  */
 export function orderStatusText(status) {
-  return STATUS_TEXT[Number(status)] ?? 'Unknown status'
+  return STATUS_TEXT[status] ?? STATUS_TEXT[Number(status)] ?? 'Unknown status'
 }
 
 /**

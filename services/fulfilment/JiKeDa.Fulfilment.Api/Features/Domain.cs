@@ -10,6 +10,10 @@ public sealed class FulfilmentOrder
     public int ExternalOrderId { get; set; }
     public int CustomerId { get; set; }
     public int AddressId { get; set; }
+    public string? ContactName { get; set; }
+    public string? PhoneNumber { get; set; }
+    public string? DeliveryAddress { get; set; }
+    public string? HouseNumber { get; set; }
     public int NeedUtensils { get; set; }
     public decimal DeliveryFee { get; set; }
     public decimal TotalAmount { get; set; }
