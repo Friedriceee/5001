@@ -3,7 +3,7 @@
 Implemented by the Catalog service (Member 3). Full rules: `docs/api-contract.md`, section "SWE5001 Catalog Service".
 
 These endpoints are internal: the gateway does not route `/internal/*`. Inside the Compose network the
-Order service calls `http://catalog:8080` and forwards the customer's `Authorization: Bearer` token.
+Order service calls `http://catalog:8080` with a short-lived service token it signs itself (role `Service`, shared `Jwt__Key`), so its background worker can release stock without a customer token.
 
 ## Reserve inventory
 

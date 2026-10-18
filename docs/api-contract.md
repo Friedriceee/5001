@@ -11,7 +11,7 @@
 | Gateway | `http://localhost:5000` | 单一外部入口 |
 | Identity | `http://localhost:5101` | `/api/auth/*`、`/api/accounts/*` |
 | Catalog | `http://localhost:5102` | `/api/catalog/*`、`/api/merchants/*`（`/internal/catalog/*` 不经 Gateway，仅服务间直连） |
-| Order | `http://localhost:5103` | `/api/cart/*`、`/api/checkout/*`、`/api/orders/*` |
+| Order | `http://localhost:5103` | `/api/cart/*`、`/api/checkout/*`、`/api/orders/*`、`/api/pricing/*`、`/api/addresses/*`（`/internal/order/*` 不经 Gateway） |
 | Fulfilment and Delivery | `http://localhost:5104` | `/api/fulfilment/*`、`/api/deliveries/*`、`/api/riders/*` |
 
 Gateway health 路由为 `/health/identity`、`/health/catalog`、`/health/order` 和 `/health/fulfilment`；Gateway 自身为 `/health`。业务前端完成迁移后只调用 Gateway，直接服务端口仅用于本地调试。
@@ -338,7 +338,7 @@ DELETE /api/catalog/merchant/dishes/{dishId}    删除
 POST /internal/catalog/reservations
 POST /internal/catalog/reservations/{reservationId}/release[?merchantId=]
 ```
-- 调用方（Order）在 Compose 网络内访问 `http://catalog:8080`，并转发顾客的 `Authorization: Bearer`；无 token 返回 `401`。Gateway 没有 `/internal/*` 路由，外部请求返回 `404`。
+- 调用方（Order）在 Compose 网络内访问 `http://catalog:8080`，使用自己签发的短期服务 token（`role=Service`，共享 `Jwt__Key`）；无 token 返回 `401`。Gateway 没有 `/internal/*` 路由，外部请求返回 `404`。
 - `reservationId` 由调用方生成（建议用 checkout 的幂等键或订单号），1–64 位字母、数字或 `. _ : -`。
 - 一次预留内所有菜品要么全部成功，要么全部回滚。同一菜品多行会合并数量。
 - 成功 `201`；同一 `reservationId` 和相同菜品数量重放返回 `200` 且 `replayed: true`，不会重复扣减；同一 id 但菜品不同或已释放返回 `409`（`RESERVATION_CONFLICT`）。
@@ -349,3 +349,50 @@ POST /internal/catalog/reservations/{reservationId}/release[?merchantId=]
 
 ### 暂不包含
 满减活动的增删改（仍在单体）、商家注册、菜品图片上传、把单体 `takeout` 库的历史数据迁入 `catalog_db`。
+
+## SWE5001 Order Service（member4）
+
+> 独立 Order 微服务（`services/order/JiKeDa.Order.Api`），拥有 `order_db`：购物车、收货地址、平台优惠券与顾客配额、checkout 尝试、订单、支付和 outbox。本地直连端口 `5103`。菜品名称、价格、商家和满减全部来自 Catalog，客户端不能传价格。
+>
+> 顾客 token 的 `profile_id` 即顾客 id。种子与 Identity 对齐：`customer1` → 顾客 `1`，拥有地址 `1`、`WELCOME5`（3 次，满 20 减 5）和 `SAVE12`（1 次，满 80 减 12）。
+
+### 顾客接口（仅 Customer，经 Gateway）
+```
+GET    /api/cart                         购物车（按商家分组，含实时价格和满减）
+POST   /api/cart/items                   { dishId, quantity }，同一菜品累加，201
+PUT    /api/cart/items/{cartItemId}      { quantity }
+DELETE /api/cart/items/{cartItemId}
+DELETE /api/cart/merchants/{merchantId}
+DELETE /api/cart                         清空
+GET    /api/pricing/coupons              我可用的优惠券
+POST   /api/pricing/quote                { couponCode? } 预览金额
+GET    /api/addresses                    我的收货地址
+POST   /api/addresses                    { address, houseNumber?, contactName, phoneNumber }，201
+POST   /api/checkout                     Idempotency-Key 头 + { addressId, couponCode?, needUtensils, paymentMethod }
+GET    /api/orders                       我的订单
+GET    /api/orders/{orderId}             他人的订单返回 404
+```
+匿名 `401`，非 Customer `403`。Catalog 不可用时返回 `503`（`code: ServiceUnavailable`），可重试。
+
+### 下单（跨服务，替代单体的单一事务）
+1. 用 `(顾客, Idempotency-Key)` 插入 checkout 尝试记录（唯一索引），它就是幂等锁：只有插入成功的请求继续，并发重复请求返回 `409 CheckoutInProgress` 或已完成订单。
+2. 向 Catalog 预留库存，`reservationId = chk-{尝试 id}`。
+3. 用预留返回的价格快照计价：先按商家套满减，再在减后金额上用一张平台券，最后加配送费 5。
+4. 本地一个事务：原子领取购物车行、原子扣减优惠券次数、模拟支付、建订单和订单行（价格快照）、写 `OrderConfirmed` 到 outbox、把尝试标为完成。
+
+- 成功 `201`；同一 key 同一请求重放返回 `200` 且 `replayed: true`（不再预留、不再扣款）；同一 key 不同请求 `409 IdempotencyKeyReused`。
+- 第 3、4 步任何失败（拒付 `402`、优惠券不可用 `400`、购物车被改 `409`）都会**释放 Catalog 预留**并删除尝试记录，顾客可以用同一个 key 重试；购物车和优惠券保持原样。
+- 库存不足 `409 InsufficientStock`；菜品不可用 `409 ItemUnavailable`；地址不属于本人 `404`。
+- Catalog 不可达：返回 `503`，并在 outbox 里记一条防御性的释放（预留请求可能已经到达 Catalog）。后台 worker 每 10 秒重试待释放项；卡住超过 5 分钟的尝试（例如进程中途重启）会被放弃并释放库存。释放在 Catalog 端是幂等的，多副本同时运行也安全。
+
+### 事件（给 Fulfilment，member5）
+```
+GET /internal/order/events?after={lastId}&limit={1..200}     （不经 Gateway，需要任意有效 JWT）
+```
+按 id 递增返回 `OrderConfirmed` 事件，字段见 `contracts/events/order-confirmed.v1.example.json`（含 `addressId`、`needUtensils`、商品明细、`deliveryFee`、`totalAmount`、`correlationId`）。Fulfilment 记住处理过的最后一个 id 轮询即可；以后接入消息队列时，outbox 改为由 worker 发布，事件格式不变。
+
+### 测试
+SQLite 上 18 个接口测试（使用与 Catalog 规则一致的内存 Catalog 替身，可模拟宕机和释放失败），PostgreSQL 上 3 个并发测试：10 个相同 key 并发只产生 1 个订单、只预留 1 次；8 个不同 key 抢同一购物车和一次性优惠券，只有 1 单成功，其余预留全部释放，优惠券只扣一次。
+
+### 暂不包含
+管理员优惠券管理与发放（仍在单体）、订单取消与退款、商家接单和骑手配送（Fulfilment，member5）。

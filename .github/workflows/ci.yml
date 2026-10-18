@@ -138,6 +138,7 @@ jobs:
         run: dotnet test JiKeDa.Platform.sln --no-build -c Release --verbosity normal
         env:
           CATALOG_TEST_POSTGRES: "Host=127.0.0.1;Port=5432;Username=platform;Password=platform;Database=postgres"
+          ORDER_TEST_POSTGRES: "Host=127.0.0.1;Port=5432;Username=platform;Password=platform;Database=postgres"
           REQUIRE_POSTGRES_TESTS: "true"
 
   # Starts the gateway, the four services and their databases, then checks health and the

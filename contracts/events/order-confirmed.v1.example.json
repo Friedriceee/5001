@@ -1,19 +1,22 @@
 {
-  "eventId": "event-001",
+  "eventId": "6f1c2b0d9a8e4f7c8b2d1e0f3a4b5c6d",
   "eventType": "OrderConfirmed",
   "eventVersion": 1,
   "orderId": 1001,
-  "customerId": 12,
+  "customerId": 1,
+  "addressId": 1,
+  "needUtensils": 1,
   "items": [
     {
-      "merchantId": 3,
-      "dishId": 10,
-      "dishName": "Campus Noodles",
+      "merchantId": 1,
+      "dishId": 1,
+      "dishName": "Braised Noodles",
       "quantity": 2,
-      "unitPrice": 12.50
+      "unitPrice": 12.00
     }
   ],
-  "totalAmount": 25.00,
+  "deliveryFee": 5.00,
+  "totalAmount": 29.00,
   "occurredAt": "2026-10-18T10:00:00Z",
   "correlationId": "trace-001"
 }
