@@ -268,3 +268,42 @@ PUT /api/admin/coupons/{couponId}/status
 GET /api/admin/orders?userId={userId}&status={status}&fromUtc={fromUtc}&toUtc={toUtc}&page={page}&pageSize={pageSize}
 ```
 所有筛选参数可选：按用户、订单状态（Pending/Paid/.../Cancelled）、时间范围过滤。响应 `200`：`data` 为 `PagedResult`，`items` 含 `orderId`、`userId`、`status`、`price`、`orderTimestamp`、`itemCount`。只读查询，不修改订单，不影响已支付订单的价格快照。
+
+
+## SWE5001 Identity Service（member2）
+
+> 独立 Identity 微服务（`services/identity/JiKeDa.Identity.Api`），拥有 `identity_db`。通过 Gateway 暴露 `/api/auth/*` 与 `/api/accounts/*`。本地直连端口 `5101`。所有服务共享同一 `Jwt__Key` 签发/验证 token；下游服务各自强制 `[Authorize]`，Gateway 的 JWT 验证为纵深防御，不是唯一授权点。
+
+### JWT 契约（全团队对齐）
+- 签名：HMAC-SHA256，`Jwt__Key`（≥32 字节，来自环境变量/部署 Secret），`Issuer=JiKeDa`、`Audience=JiKeDa.Client`。
+- Claims：`sub`（Account Id）、`nameid`（Account Id）、`name`（用户名）、`role`（Customer/Merchant/Rider/Administrator）、`profile_id`、`jti`。
+- 其他服务验证时需 `RoleClaimType = "role"`、`MapInboundClaims = false`，与本服务一致。
+
+### 登录
+```
+POST /api/auth/login
+```
+请求体：`username`、`password`。成功 `200`，`data` 含 `accessToken`、`expiresAtUtc`、`accountId`、`role`、`profileId`；凭据错误或**账号被停用**返回 `401`。
+
+### 顾客注册
+```
+POST /api/auth/customer/register
+```
+请求体：`username`（3–50，唯一忽略大小写）、`password`（8–100）、`displayName`（≤50）、`phoneNumber`（8–11 位数字）。成功 `201`（`accountId`/`customerId`/`username`/`displayName`）；用户名重复 `409`；必填缺失 `400`。
+> 范围说明（member2）：本 Sprint 只实现顾客自助注册；商家/骑手账号由种子或管理员创建，其业务资料由 Catalog/Fulfilment 拥有。Identity 只持有账号 + `ProfileId` 引用，不保存商家/骑手业务资料。
+
+### 账号管理（仅 Administrator）
+```
+GET /api/accounts?role={role}&page={page}&pageSize={pageSize}
+PUT /api/accounts/{accountId}/status      body: { "isActive": true|false }
+PUT /api/accounts/{accountId}/role        body: { "role": "Customer|Merchant|Rider|Administrator" }
+```
+匿名 `401`；非 Administrator（Customer/Merchant/Rider）`403`。查询返回 `PagedResult`（items + page/pageSize/totalCount/totalPages）。停用账号后该账号无法登录。角色调整受 `(Role, ProfileId)` 唯一约束限制。`404`：账号不存在；`400`：角色非法。
+
+### 种子账号（仅 staging/测试，非生产密钥）
+| 用户名 | 角色 | 密码 |
+|--------|------|------|
+| `admin` | Administrator | `Passw0rd!123` |
+| `merchant1` | Merchant | `Passw0rd!123` |
+| `rider1` | Rider | `Passw0rd!123` |
+| `customer1` | Customer | `Passw0rd!123` |
