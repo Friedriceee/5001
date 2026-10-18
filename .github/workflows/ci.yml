@@ -109,6 +109,58 @@ jobs:
         if: always()
         run: docker compose --profile app down -v
 
+  # The SWE5001 microservices (gateway + services/*): build the solution and run every service's
+  # tests. PostgreSQL tests are required here, so they fail instead of being skipped.
+  services:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: platform
+          POSTGRES_PASSWORD: platform
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U platform"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet restore JiKeDa.Platform.sln
+      - run: dotnet build JiKeDa.Platform.sln --no-restore -c Release
+      - name: Test (SQLite + PostgreSQL concurrency tests)
+        run: dotnet test JiKeDa.Platform.sln --no-build -c Release --verbosity normal
+        env:
+          CATALOG_TEST_POSTGRES: "Host=127.0.0.1;Port=5432;Username=platform;Password=platform;Database=postgres"
+          REQUIRE_POSTGRES_TESTS: "true"
+
+  # Starts the gateway, the four services and their databases, then checks health and the
+  # Catalog flow through the gateway (public menu, internal reservations not exposed).
+  microservices-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Start the microservices
+        run: docker compose -f docker-compose.microservices.yml up -d --build --wait --wait-timeout 300
+      - name: Smoke test
+        run: node scripts/smoke/foundation-smoke.mjs
+      - name: Show service logs when something failed
+        if: failure()
+        run: docker compose -f docker-compose.microservices.yml logs --no-color --tail=200
+      - name: Stop the stack
+        if: always()
+        run: docker compose -f docker-compose.microservices.yml down -v
+
   # Fails the build if a credential was committed anywhere in the repository history.
   secret-scan:
     runs-on: ubuntu-latest
