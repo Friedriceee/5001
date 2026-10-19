@@ -34,13 +34,7 @@ export const useCartStore = defineStore('cart', () => {
 
   function applyCart(cart) {
     const next = cart ?? emptyCart()
-    groups.value = (next.merchants ?? []).map((group) => ({
-      ...group,
-      items: group.items.map((item) => ({
-        ...item,
-        dishNum: item.quantity ?? item.dishNum,
-      })),
-    }))
+    groups.value = next.merchants ?? []
     summary.value = {
       totalCount: Number(next.totalCount ?? 0),
       subtotal: Number(next.subtotal ?? 0),
@@ -63,8 +57,8 @@ export const useCartStore = defineStore('cart', () => {
     applyCart(await addCartItem({ dishId, quantity: 1 }))
   }
 
-  async function setQuantity(cartItemId, dishNum) {
-    applyCart(await updateCartItem(cartItemId, { quantity: Number(dishNum) }))
+  async function setQuantity(cartItemId, quantity) {
+    applyCart(await updateCartItem(cartItemId, { quantity: Number(quantity) }))
   }
 
   async function removeItem(cartItemId) {

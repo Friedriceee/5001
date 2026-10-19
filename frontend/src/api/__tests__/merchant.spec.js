@@ -17,7 +17,7 @@ describe('merchant fulfilment API', () => {
 
     await listMerchantOrders()
 
-    expect(http.get).toHaveBeenCalledWith('/merchant/orders')
+    expect(http.get).toHaveBeenCalledWith('/fulfilment/orders')
   })
 
   it('sends an explicit order action and optional rejection reason', async () => {
@@ -25,7 +25,7 @@ describe('merchant fulfilment API', () => {
 
     await transitionMerchantOrder(42, 'Reject', 'Kitchen is closing.')
 
-    expect(http.put).toHaveBeenCalledWith('/merchant/orders/42/status', {
+    expect(http.put).toHaveBeenCalledWith('/fulfilment/orders/42/status', {
       action: 'Reject',
       reason: 'Kitchen is closing.',
     })

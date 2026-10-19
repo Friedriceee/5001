@@ -5,7 +5,7 @@
 
 ## 本次目标
 
-在不删除或改写现有单体业务的前提下，建立后续五名成员可以共同使用的本地微服务骨架。本次只完成服务结构和联调基础，不迁移具体业务功能，也不开始 Azure 部署。
+在不删除或改写现有单体业务的前提下，建立后续五名成员可以共同使用的本地微服务基础，并完成 Member 5 的 Fulfilment and Delivery 迁移；不开始 Azure 部署。
 
 ## 已完成内容
 
@@ -19,6 +19,7 @@
 - 新增基础 smoke test，通过 Gateway 检查 Gateway 和四个服务的健康状态及 `X-Correlation-ID`。
 - 更新 `docs/api-contract.md`，记录本地端口、Gateway 路由、数据库归属和第一批跨服务示例。
 - 新增 Catalog 库存预留示例和 `OrderConfirmed` 事件示例，供 Member 3、4、5 后续开发时统一字段。
+- Member 5 已在 Fulfilment 中实现 `OrderConfirmed` 幂等消费、商家接单/备餐、骑手原子认领及取餐到送达的状态机，并添加 NUnit 流程测试。
 
 ## 当前约定
 
@@ -41,8 +42,8 @@
 
 ## 尚未包含
 
-- 四个服务目前只有运行骨架和 health endpoint，尚未迁移真实业务。
-- 尚未加入 Service Bus 消费者、Outbox/Inbox、JWT/RBAC 和服务 DbContext。
+- Fulfilment 目前通过 Order 的 HTTP 事件 feed 轮询，不是 Service Bus；后续可替换 transport 而不改变事件格式。
+- 其余尚未迁移的业务仍按模块逐步迁移；不共享 DbContext 或数据库。
 - 尚未修改现有 Vue 页面，也没有新增用户可见页面。
 - 尚未开始 Azure、Bicep、云端 CI/CD 和扩缩容配置。
 
@@ -51,4 +52,4 @@
 1. Member 2 从现有单体迁移最小登录和 JWT 到 Identity Service。
 2. Member 3 同时迁移公开菜单查询和基础库存到 Catalog Service。
 3. Identity 和 Catalog 稳定后，Member 4 开始迁移购物车与 checkout，并按示例调用库存预留接口。
-4. Order 能发布 `OrderConfirmed` 后，Member 5 再接入 Fulfilment 消费和履约流程。
+4. Member 5 已接入 Fulfilment 消费和履约流程；后续接入地址读取合同或消息总线时，保持现有事件幂等与服务边界。

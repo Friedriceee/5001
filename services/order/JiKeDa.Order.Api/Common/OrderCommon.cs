@@ -6,6 +6,7 @@ namespace JiKeDa.Order.Api.Common;
 public static class OrderRoles
 {
     public const string Customer = "Customer";
+    public const string Administrator = "Administrator";
 }
 
 public static class ClaimsPrincipalExtensions

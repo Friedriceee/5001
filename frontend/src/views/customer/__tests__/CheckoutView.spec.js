@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
       dishId: 10,
       name: 'Noodles',
       price: 20,
-      dishNum: 2,
+      quantity: 2,
     }],
     load: vi.fn(),
     clear: vi.fn(),
@@ -119,7 +119,7 @@ describe('CheckoutView', () => {
       dishId: 10,
       name: 'Noodles',
       price: 20,
-      dishNum: 2,
+      quantity: 2,
     }]
     mocks.pricing.error = ''
     mocks.pricing.hasQuote = true

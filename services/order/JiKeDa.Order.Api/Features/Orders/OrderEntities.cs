@@ -53,9 +53,9 @@ public sealed record OrderResponse(
     DateTime CreatedAtUtc,
     IReadOnlyList<OrderLineResponse> Lines)
 {
-    public static OrderResponse From(CustomerOrder order) => new(
+    public static OrderResponse From(CustomerOrder order, string? fulfilmentStatus = null) => new(
         order.Id,
-        order.Status.ToString(),
+        fulfilmentStatus ?? order.Status.ToString(),
         order.AddressId,
         order.NeedUtensils,
         order.Subtotal,

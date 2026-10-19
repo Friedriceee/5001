@@ -5,8 +5,6 @@
 
 // Order status values match the backend OrderStatus enum.
 const STATUS_TEXT = {
-  Paid: 'Paid',
-  Cancelled: 'Cancelled',
   0: 'Pending payment',
   1: 'Paid',
   2: 'Out for delivery',
@@ -19,6 +17,16 @@ const STATUS_TEXT = {
   9: 'Completed',
   10: 'Rejected',
   11: 'Cancelled',
+  Paid: 'Paid',
+  AwaitingMerchant: 'Waiting for restaurant',
+  Preparing: 'Preparing',
+  ReadyForDelivery: 'Ready for pickup',
+  Assigned: 'Courier assigned',
+  PickedUp: 'Picked up',
+  Delivering: 'Out for delivery',
+  Completed: 'Completed',
+  Rejected: 'Rejected',
+  Cancelled: 'Cancelled',
 }
 
 /**

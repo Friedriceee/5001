@@ -257,10 +257,10 @@ onMounted(loadCheckout)
           <el-table :data="cart.items" stripe>
             <el-table-column prop="merchantName" label="Restaurant" min-width="150" />
             <el-table-column prop="name" label="Dish" min-width="160" />
-            <el-table-column prop="dishNum" label="Qty" width="70" />
+            <el-table-column prop="quantity" label="Qty" width="70" />
             <el-table-column label="Item total" width="130" align="right">
               <template #default="scope">
-                {{ formatYuan(Number(scope.row.price) * Number(scope.row.dishNum)) }}
+                {{ formatYuan(Number(scope.row.price) * Number(scope.row.quantity)) }}
               </template>
             </el-table-column>
           </el-table>

@@ -17,11 +17,11 @@ async function loadCart() {
   }
 }
 
-async function updateQuantity(item, dishNum) {
-  if (!Number.isInteger(dishNum) || dishNum < 1 || item.dishNum === dishNum) return
+async function updateQuantity(item, quantity) {
+  if (!Number.isInteger(quantity) || quantity < 1 || item.quantity === quantity) return
   updatingItemId.value = item.id
   try {
-    await cart.setQuantity(item.id, dishNum)
+    await cart.setQuantity(item.id, quantity)
   } finally {
     updatingItemId.value = null
   }
@@ -91,7 +91,7 @@ onMounted(loadCart)
         <el-table-column label="Quantity" width="180">
           <template #default="scope">
             <el-input-number
-              :model-value="scope.row.dishNum"
+              :model-value="scope.row.quantity"
               :min="1"
               :precision="0"
               :disabled="updatingItemId === scope.row.id"

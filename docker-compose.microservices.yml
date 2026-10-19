@@ -69,6 +69,7 @@ services:
       ConnectionStrings__Default: "Host=foundation-db;Port=5432;Database=order_db;Username=order_app;Password=order_local_only"
       # Internal calls go straight to Catalog inside the network, never through the gateway.
       Services__CatalogBaseUrl: "http://catalog:8080/"
+      Services__FulfilmentBaseUrl: "http://fulfilment:8080/"
     ports:
       - "5103:8080"
     healthcheck: *service-healthcheck
@@ -79,9 +80,12 @@ services:
     depends_on:
       foundation-db:
         condition: service_healthy
+      order:
+        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Default: "Host=foundation-db;Port=5432;Database=fulfilment_db;Username=fulfilment_app;Password=fulfilment_local_only"
+      Services__OrderBaseUrl: "http://order:8080/"
     ports:
       - "5104:8080"
     healthcheck: *service-healthcheck
@@ -101,6 +105,24 @@ services:
     ports:
       - "5000:8080"
     healthcheck: *service-healthcheck
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        API_UPSTREAM: gateway
+        VITE_ENABLE_TEST_PAYMENT: "true"
+    image: jikeda-frontend:microservices
+    depends_on:
+      gateway:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   microservices-pgdata:

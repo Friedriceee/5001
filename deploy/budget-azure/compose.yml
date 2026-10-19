@@ -54,6 +54,8 @@ services:
     environment:
       <<: *env
       ConnectionStrings__Default: Host=foundation-db;Database=identity_db;Username=identity_app;Password=${IDENTITY_DB_PASSWORD:?}
+      Services__CatalogBaseUrl: http://catalog:8080/
+      Services__FulfilmentBaseUrl: http://fulfilment:8080/
 
   catalog:
     <<: *service
@@ -77,6 +79,7 @@ services:
       <<: *env
       ConnectionStrings__Default: Host=foundation-db;Database=order_db;Username=order_app;Password=${ORDER_DB_PASSWORD:?}
       Services__CatalogBaseUrl: http://catalog:8080/
+      Services__FulfilmentBaseUrl: http://fulfilment:8080/
     ports: ['127.0.0.1::8080']
 
   fulfilment:
@@ -85,9 +88,11 @@ services:
     image: jikeda5001-cloud/fulfilment:${SOURCE_REVISION:?}
     depends_on:
       foundation-db: {condition: service_healthy}
+      order: {condition: service_healthy}
     environment:
       <<: *env
       ConnectionStrings__Default: Host=foundation-db;Database=fulfilment_db;Username=fulfilment_app;Password=${FULFILMENT_DB_PASSWORD:?}
+      Services__OrderBaseUrl: http://order:8080/
 
   gateway:
     <<: *service

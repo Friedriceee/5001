@@ -42,7 +42,7 @@ describe('cart store', () => {
     await cart.load()
 
     expect(cart.items).toHaveLength(1)
-    expect(cart.items[0]).toMatchObject({ id: 7, merchantId: 1, name: 'A', price: 12, dishNum: 2 })
+    expect(cart.items[0]).toMatchObject({ id: 7, merchantId: 1, name: 'A', price: 12, quantity: 2 })
     expect(cart.totalCount).toBe(2)
     expect(cart.subtotal).toBe(24)
     expect(cart.discount).toBe(3)

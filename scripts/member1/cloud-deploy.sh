@@ -30,9 +30,13 @@ export COMPOSE_PARALLEL_LIMIT=1
 echo 'Building application images serially.'
 "${compose[@]}" build > "$state/build.log" 2>&1
 echo 'Starting application and waiting for health checks.'
-"${compose[@]}" up -d --wait --wait-timeout 240 > "$state/start.log" 2>&1
+# Keep public ingress closed until migrations and seed-password rotation finish.
+# New service migrations may introduce additional accounts with local-only passwords.
+"${compose[@]}" stop web
+"${compose[@]}" up -d --wait --wait-timeout 240 foundation-db identity catalog order fulfilment gateway > "$state/start.log" 2>&1
 echo 'Rotating seed passwords.'
 python3 scripts/member1/prepare-cloud-demo.py
+"${compose[@]}" up -d --wait --wait-timeout 120 web >> "$state/start.log" 2>&1
 set -a
 source "$state/runtime.env"
 set +a

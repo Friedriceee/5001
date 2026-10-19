@@ -1,19 +1,19 @@
 import http from './http'
 
 export function createDish(payload) {
-  return http.post('/merchant/dishes', payload)
+  return http.post('/catalog/merchant/dishes', payload)
 }
 
-export function listDishes(merchantId) {
-  return http.get(`/merchant/${merchantId}/dishes`)
+export function listDishes() {
+  return http.get('/catalog/merchant/dishes')
 }
 
-export function updateDish(dishId, merchantId, payload) {
-  return http.put(`/merchant/dishes/${dishId}`, payload, { params: { merchantId } })
+export function updateDish(dishId, _merchantId, payload) {
+  return http.put(`/catalog/merchant/dishes/${dishId}`, payload)
 }
 
-export function deleteDish(dishId, merchantId) {
-  return http.delete(`/merchant/dishes/${dishId}`, { params: { merchantId } })
+export function deleteDish(dishId) {
+  return http.delete(`/catalog/merchant/dishes/${dishId}`)
 }
 
 export function createSpecialOffer(payload) {
@@ -21,7 +21,7 @@ export function createSpecialOffer(payload) {
 }
 
 export function listSpecialOffers(merchantId) {
-  return http.get(`/merchant/${merchantId}/special-offers`)
+  return http.get(`/merchants/${merchantId}/special-offers`)
 }
 
 export function updateSpecialOffer(offerId, merchantId, payload) {
@@ -40,9 +40,9 @@ export function deleteSpecialOffer(offerId, merchantId) {
 }
 
 export function listMerchantOrders() {
-  return http.get('/merchant/orders')
+  return http.get('/fulfilment/orders')
 }
 
 export function transitionMerchantOrder(orderId, action, reason = null) {
-  return http.put(`/merchant/orders/${orderId}/status`, { action, reason })
+  return http.put(`/fulfilment/orders/${orderId}/status`, { action, reason })
 }

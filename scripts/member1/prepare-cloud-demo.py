@@ -1,4 +1,4 @@
-"""Rotate only the four seed accounts before opening Internet ingress.
+"""Rotate all six known seed accounts before opening Internet ingress.
 
 The temporary registration lets Identity generate its own PasswordHasher hash;
 neither hashes nor access tokens are logged. Reruns verify the existing password.
@@ -56,7 +56,26 @@ COMMIT;
                    input=sql, text=True, check=True, stdout=subprocess.DEVNULL)
     (state / 'seed-passwords-rotated').touch(mode=0o600)
 
-for username in ('admin', 'merchant1', 'rider1', 'customer1'):
+# Preserve the existing private demo password when new migrations add seed accounts.
+# Only known seed rows are updated; real registrations retain their own passwords.
+assert request('/api/auth/login', {'username': 'customer1', 'password': env['DEMO_PASSWORD']})[0] == 200
+subprocess.run(compose + ['exec', '-T', 'foundation-db', 'psql', '-v', 'ON_ERROR_STOP=1',
+                         '-U', 'platform_admin', '-d', 'identity_db'], input='''
+BEGIN;
+DO $$ BEGIN
+IF (SELECT COUNT(*) FROM "Accounts" WHERE
+    ("Id", "Username") IN ((1000,'admin'),(1001,'merchant1'),(1002,'rider1'),
+                           (1003,'customer1'),(1004,'merchant2'),(1005,'rider2'))) <> 6 THEN
+  RAISE EXCEPTION 'Unexpected demo seed accounts';
+END IF;
+END $$;
+UPDATE "Accounts" SET "PasswordHash" =
+  (SELECT "PasswordHash" FROM "Accounts" WHERE "Id" = 1003 AND "Username" = 'customer1')
+WHERE ("Id", "Username") IN ((1000,'admin'),(1001,'merchant1'),(1002,'rider1'),
+                             (1003,'customer1'),(1004,'merchant2'),(1005,'rider2'));
+COMMIT;
+''', text=True, check=True, stdout=subprocess.DEVNULL)
+for username in ('admin', 'merchant1', 'merchant2', 'rider1', 'rider2', 'customer1'):
     assert request('/api/auth/login', {'username': username, 'password': env['DEMO_PASSWORD']})[0] == 200
     assert request('/api/auth/login', {'username': username, 'password': 'Passw0rd!123'})[0] == 401
-print('Four seed accounts rotated; default passwords rejected.')
+print('Six seed accounts rotated; default passwords rejected.')

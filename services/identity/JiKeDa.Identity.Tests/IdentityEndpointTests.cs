@@ -59,6 +59,47 @@ public class IdentityEndpointTests
     }
 
     [Test]
+    public async Task Register_merchant_creates_a_login_linked_to_the_catalog_profile()
+    {
+        using var client = _factory.CreateClient();
+        var register = await client.PostAsJsonAsync("/api/merchant/register", new
+        {
+            username = "newmerchant", password = "SecurePass123", merchantName = "New Restaurant",
+            merchantAddress = "1 Campus Drive", contact = "12345678", dishType = "Noodles",
+            timeForOpenBusiness = 32400, timeForCloseBusiness = 75600, walletPassword = "Wallet123",
+        });
+        Assert.That(register.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new { username = "newmerchant", password = "SecurePass123" });
+        var body = await login.Content.ReadFromJsonAsync<ApiResponse<LoginDto>>();
+        Assert.Multiple((Action)(() =>
+        {
+            Assert.That(body?.Data?.Role, Is.EqualTo("Merchant"));
+            Assert.That(body?.Data?.ProfileId, Is.EqualTo(1000));
+        }));
+    }
+
+    [Test]
+    public async Task Register_rider_creates_a_login_linked_to_the_fulfilment_profile()
+    {
+        using var client = _factory.CreateClient();
+        var register = await client.PostAsJsonAsync("/api/rider/register", new
+        {
+            username = "newrider", password = "SecurePass123", name = "New Rider",
+            phoneNumber = "12345678", zone = "ZoneB", capacity = 4,
+        });
+        Assert.That(register.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new { username = "newrider", password = "SecurePass123" });
+        var body = await login.Content.ReadFromJsonAsync<ApiResponse<LoginDto>>();
+        Assert.Multiple((Action)(() =>
+        {
+            Assert.That(body?.Data?.Role, Is.EqualTo("Rider"));
+            Assert.That(body?.Data?.ProfileId, Is.EqualTo(2000));
+        }));
+    }
+
+    [Test]
     public async Task Anonymous_request_to_accounts_returns_401()
     {
         using var client = _factory.CreateClient();

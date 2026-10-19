@@ -1,59 +1,24 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { useAuthStore } from '@/stores/auth'
-import { cancelOrder, listOrders } from '@/api/order'
-import { isPending, orderStatusText } from '@/utils/order'
+import { onMounted, ref } from 'vue'
+import { listOrders } from '@/api/order'
+import { orderStatusText } from '@/utils/order'
 import { formatYuan } from '@/utils/money'
-
-const authStore = useAuthStore()
 
 const orders = ref([])
 const loading = ref(false)
 
-const userId = computed(() => authStore.user?.profileId ?? null)
-
-function kitchenStatusText(status) {
-  return {
-    Confirmed: 'Waiting for restaurant',
-    Accepted: 'Accepted by restaurant',
-    Preparing: 'Preparing',
-    ReadyForDelivery: 'Ready for pickup',
-    Rejected: 'Rejected',
-  }[status] ?? status ?? '—'
-}
-
-function deliveryStatusText(order) {
-  return {
-    Assigned: 'Courier assigned',
-    PickedUp: 'Picked up',
-    Delivering: 'Out for delivery',
-    Completed: 'Delivered',
-  }[order.deliveryStatus] ?? orderStatusText(order.status)
+function formatDate(value) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    .format(new Date(value))
 }
 
 async function loadOrders() {
   loading.value = true
   try {
-    if (!userId.value) return
-    orders.value = await listOrders(userId.value)
+    orders.value = await listOrders()
   } finally {
     loading.value = false
-  }
-}
-
-async function removeOrder(order) {
-  try {
-    await ElMessageBox.confirm('Cancel this pending order?', 'Cancel order', {
-      type: 'warning',
-      confirmButtonText: 'Cancel order',
-      cancelButtonText: 'Keep order',
-    })
-    await cancelOrder(order.id)
-    ElMessage.success('Order cancelled.')
-    await loadOrders()
-  } catch (error) {
-    if (error !== 'cancel' && error !== 'close') throw error
   }
 }
 
@@ -65,7 +30,7 @@ onMounted(loadOrders)
     <div class="page-heading">
       <div>
         <h1>Your orders</h1>
-        <p>Track placed orders and cancel orders that are still pending payment.</p>
+        <p>Track each order from payment through restaurant preparation and delivery.</p>
       </div>
       <el-button :loading="loading" @click="loadOrders">Refresh</el-button>
     </div>
@@ -74,29 +39,20 @@ onMounted(loadOrders)
       <template #header>Order history</template>
       <el-table v-loading="loading" :data="orders" stripe>
         <el-table-column prop="id" label="Order ID" width="100" />
+        <el-table-column label="Placed" min-width="170">
+          <template #default="scope">{{ formatDate(scope.row.createdAtUtc) }}</template>
+        </el-table-column>
         <el-table-column label="Amount" width="130">
-          <template #default="scope">{{ formatYuan(scope.row.total ?? scope.row.price) }}</template>
+          <template #default="scope">{{ formatYuan(scope.row.total) }}</template>
         </el-table-column>
-        <el-table-column label="Kitchen" width="150">
-          <template #default="scope">{{ kitchenStatusText(scope.row.fulfillmentStatus) }}</template>
+        <el-table-column label="Status" min-width="180">
+          <template #default="scope">{{ orderStatusText(scope.row.status) }}</template>
         </el-table-column>
-        <el-table-column label="Delivery" min-width="180">
+        <el-table-column label="Items" min-width="250">
           <template #default="scope">
-            <div>{{ deliveryStatusText(scope.row) }}</div>
-            <small v-if="scope.row.riderName">{{ scope.row.riderName }} · {{ scope.row.riderPhone }}</small>
-          </template>
-        </el-table-column>
-        <el-table-column label="Actions" width="140" fixed="right">
-          <template #default="scope">
-            <el-button
-              v-if="isPending(scope.row.status)"
-              link
-              type="danger"
-              @click="removeOrder(scope.row)"
-            >
-              Cancel order
-            </el-button>
-            <span v-else>—</span>
+            <div v-for="line in scope.row.lines" :key="`${scope.row.id}-${line.dishId}`">
+              {{ line.quantity }} × {{ line.dishName }}
+            </div>
           </template>
         </el-table-column>
       </el-table>

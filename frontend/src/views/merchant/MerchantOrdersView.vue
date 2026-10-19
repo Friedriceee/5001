@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listMerchantOrders, transitionMerchantOrder } from '@/api/merchant'
 import { formatYuan } from '@/utils/money'
@@ -7,6 +7,7 @@ import { formatYuan } from '@/utils/money'
 const orders = ref([])
 const loading = ref(false)
 const updatingOrderId = ref(null)
+let refreshTimer = null
 
 const openOrders = computed(() => orders.value.filter((order) => !['Rejected'].includes(order.status)))
 const rejectedOrders = computed(() => orders.value.filter((order) => order.status === 'Rejected'))
@@ -25,28 +26,55 @@ function statusType(status) {
     Accepted: 'primary',
     Preparing: 'warning',
     ReadyForDelivery: 'success',
+    Assigned: 'primary',
+    PickedUp: 'primary',
+    Delivering: 'warning',
+    Completed: 'success',
     Rejected: 'danger',
   }[status] ?? 'info'
 }
 
+function displayedStatus(order) {
+  return order.status === 'ReadyForDelivery' && order.overallStatus
+    ? order.overallStatus
+    : order.status
+}
+
 function statusLabel(status) {
-  return status === 'ReadyForDelivery' ? 'Ready for delivery' : status
+  return {
+    ReadyForDelivery: 'Ready for delivery',
+    PickedUp: 'Picked up',
+    Delivering: 'Out for delivery',
+  }[status] ?? status
 }
 
-function readyNote(overallStatus) {
-  if (['Paid', 'Accepted', 'Preparing'].includes(overallStatus)) return 'Waiting for other restaurants'
-  if (overallStatus === 'ReadyForDelivery') return 'Waiting for a courier'
-  if (['Assigned', 'PickedUp', 'Delivering'].includes(overallStatus)) return 'Courier delivery in progress'
-  if (overallStatus === 'Completed') return 'Delivery completed'
-  return 'Waiting for order coordination'
+function completionNote(status) {
+  return {
+    AwaitingMerchant: 'Waiting for the other restaurant(s).',
+    Preparing: 'Waiting for the other restaurant(s).',
+    ReadyForDelivery: 'Waiting for a courier.',
+    Assigned: 'Courier assigned.',
+    PickedUp: 'Picked up by the courier.',
+    Delivering: 'Out for delivery.',
+    Completed: 'Delivery completed.',
+    Rejected: 'The order was rejected.',
+  }[status] ?? 'Waiting for delivery updates.'
 }
 
-async function loadOrders() {
-  loading.value = true
+function itemCount(order) {
+  return order.items.reduce((total, item) => total + Number(item.quantity), 0)
+}
+
+function merchantSubtotal(order) {
+  return order.items.reduce((total, item) => total + Number(item.unitPrice) * Number(item.quantity), 0)
+}
+
+async function loadOrders(background = false) {
+  if (!background) loading.value = true
   try {
     orders.value = await listMerchantOrders()
   } finally {
-    loading.value = false
+    if (!background) loading.value = false
   }
 }
 
@@ -81,7 +109,11 @@ async function rejectOrder(order) {
   }
 }
 
-onMounted(loadOrders)
+onMounted(() => {
+  loadOrders()
+  refreshTimer = window.setInterval(() => loadOrders(true), 5000)
+})
+onUnmounted(() => window.clearInterval(refreshTimer))
 </script>
 
 <template>
@@ -111,13 +143,11 @@ onMounted(loadOrders)
           <div class="card-header">
             <div>
               <strong>Order #{{ order.orderId }}</strong>
-              <span class="order-meta">{{ formatDate(order.orderTimestamp) }} · Customer #{{ order.customerId }}</span>
+              <span class="order-meta">{{ formatDate(order.orderedAtUtc) }} · Address #{{ order.addressId }}</span>
             </div>
-            <el-tag :type="statusType(order.status)" effect="light">{{ statusLabel(order.status) }}</el-tag>
+            <el-tag :type="statusType(displayedStatus(order))" effect="light">{{ statusLabel(displayedStatus(order)) }}</el-tag>
           </div>
         </template>
-
-        <el-alert v-if="order.riderName" :title="`Courier assigned: ${order.riderName} · ${order.riderPhone}`" :description="`Delivery status: ${order.deliveryStatus}`" type="success" :closable="false" show-icon />
 
         <el-table :data="order.items" stripe>
           <el-table-column prop="dishName" label="Dish" min-width="200" />
@@ -126,12 +156,12 @@ onMounted(loadOrders)
           </el-table-column>
           <el-table-column prop="quantity" label="Quantity" width="120" />
           <el-table-column label="Item total" width="140">
-            <template #default="scope">{{ formatYuan(scope.row.lineTotal) }}</template>
+            <template #default="scope">{{ formatYuan(scope.row.unitPrice * scope.row.quantity) }}</template>
           </el-table-column>
         </el-table>
 
         <div class="order-footer">
-          <div><span>{{ order.itemCount }} items</span><strong>{{ formatYuan(order.merchantSubtotal) }}</strong></div>
+          <div><span>{{ itemCount(order) }} items</span><strong>{{ formatYuan(merchantSubtotal(order)) }}</strong></div>
           <div class="actions">
             <template v-if="order.status === 'Confirmed'">
               <el-button
@@ -155,7 +185,7 @@ onMounted(loadOrders)
               :loading="updatingOrderId === order.orderId"
               @click="applyTransition(order, 'MarkReady', 'Order is ready for delivery.')"
             >Mark ready for delivery</el-button>
-            <span v-else class="complete-note">{{ readyNote(order.overallStatus) }}</span>
+            <span v-else class="complete-note">{{ completionNote(order.overallStatus) }}</span>
           </div>
         </div>
       </el-card>
@@ -166,7 +196,7 @@ onMounted(loadOrders)
           <div class="rejected-row">
             <div>
               <strong>Order #{{ order.orderId }}</strong>
-              <p>{{ order.rejectionReason }}</p>
+              <p>This restaurant rejected the order.</p>
             </div>
             <el-tag type="danger">Rejected</el-tag>
           </div>
