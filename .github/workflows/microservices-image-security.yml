@@ -1,0 +1,52 @@
+name: Microservice image security
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: identity
+            context: services/identity/JiKeDa.Identity.Api
+            file: services/identity/JiKeDa.Identity.Api/Dockerfile
+          - component: catalog
+            context: services/catalog/JiKeDa.Catalog.Api
+            file: services/catalog/JiKeDa.Catalog.Api/Dockerfile
+          - component: order
+            context: services/order/JiKeDa.Order.Api
+            file: services/order/JiKeDa.Order.Api/Dockerfile
+          - component: fulfilment
+            context: services/fulfilment/JiKeDa.Fulfilment.Api
+            file: services/fulfilment/JiKeDa.Fulfilment.Api/Dockerfile
+          - component: gateway
+            context: gateway/JiKeDa.Gateway
+            file: gateway/JiKeDa.Gateway/Dockerfile
+          - component: web
+            context: frontend
+            file: deploy/budget-azure/frontend.Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build release image
+        run: docker build --pull -t jikeda-security:${{ matrix.component }} -f ${{ matrix.file }} ${{ matrix.context }}
+      - name: Scan all known high and critical findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: jikeda-security:${{ matrix.component }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: '1'
+          format: json
+          output: trivy-${{ matrix.component }}.json
+          scanners: vuln
+      - name: Preserve scan result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-scan-${{ matrix.component }}
+          path: trivy-${{ matrix.component }}.json
