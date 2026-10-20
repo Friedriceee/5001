@@ -1,0 +1,228 @@
+{
+  "uid": "jikeda-cloud-scaling",
+  "title": "JiKeDa - live cloud scaling",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "timezone": "browser",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Independent service replicas",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "jikeda-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "jikeda_service_replicas{service=~\"catalog|identity|order|fulfilment\"}",
+          "legendFormat": "{{service}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Catalog request rate / threshold",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "jikeda-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "jikeda_catalog_requests_per_second",
+          "legendFormat": "Measured requests/s"
+        },
+        {
+          "refId": "B",
+          "expr": "jikeda_scale_out_threshold",
+          "legendFormat": "Scale out threshold"
+        },
+        {
+          "refId": "C",
+          "expr": "jikeda_scale_in_threshold",
+          "legendFormat": "Scale in threshold"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Service Bus order backlog",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "jikeda-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "jikeda_queue_active_messages",
+          "legendFormat": "Active messages"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Scaling actions",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "jikeda-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "jikeda_scaling_actions_total",
+          "legendFormat": "{{service}} {{direction}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Queue dead letters",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "jikeda-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "jikeda_queue_dead_letter_messages",
+          "legendFormat": "Dead letters"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Controller and queue observations",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "jikeda-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{__name__=~\"jikeda_autoscaler_ready|jikeda_queue_observation_ready\"}",
+          "legendFormat": "{{__name__}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    }
+  ]
+}

@@ -62,6 +62,24 @@ public sealed class FulfilmentFlowTests
     }
 
     [Test]
+    public async Task QueueConsumer_AcceptsOutOfOrderEvents_AndDeduplicatesRedelivery()
+    {
+        var consumer = new OrderEventConsumer(_db, _events, TimeProvider.System);
+        var second = Message(20, 52, [new(1, 7, "Noodles", 1, 12m)]);
+        var first = Message(10, 51, [new(1, 7, "Noodles", 1, 12m)]);
+        await consumer.ConsumeQueueAsync(second, CancellationToken.None);
+        await consumer.ConsumeQueueAsync(first, CancellationToken.None);
+        await consumer.ConsumeQueueAsync(second, CancellationToken.None);
+        Assert.Multiple((Action)(() =>
+        {
+            Assert.That(_db.Orders.Count(), Is.EqualTo(2));
+            Assert.That(_db.ProcessedOrderEvents.Count(), Is.EqualTo(2));
+            Assert.That(_db.EventCheckpoints.Count(), Is.Zero);
+            Assert.That(_db.Orders.Select(o => o.ExternalOrderId), Is.EquivalentTo(new[] { 51, 52 }));
+        }));
+    }
+
+    [Test]
     public async Task MerchantThenRider_ProgressesACompleteDelivery()
     {
         _events.Messages.Add(Message(1, 43, [new(1, 7, "Noodles", 1, 12m), new(2, 8, "Rice", 1, 10m)]));

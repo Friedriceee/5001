@@ -1,3 +1,7 @@
+using Azure.Identity;
+using Azure.Messaging.ServiceBus;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
+using System.Diagnostics;
 using System.Security.Claims;
 using System.Text;
 using JiKeDa.Fulfilment.Api.Common;
@@ -13,6 +17,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+if (!string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+    builder.Services.AddOpenTelemetry().UseAzureMonitor();
+builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 builder.Services.AddControllers(options => options.Filters.Add<ApiExceptionFilter>());
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
@@ -55,11 +62,32 @@ builder.Services.AddScoped<OrderEventConsumer>();
 builder.Services.AddScoped<MerchantFulfilmentService>();
 builder.Services.AddScoped<DeliveryService>();
 builder.Services.AddScoped<CustomerTrackingService>();
-if (builder.Configuration.GetValue("EventConsumer:Enabled", true))
+var messagingNamespace = builder.Configuration["Messaging:FullyQualifiedNamespace"];
+if (!string.IsNullOrWhiteSpace(messagingNamespace))
+{
+    builder.Services.AddSingleton(new ServiceBusClient(messagingNamespace, new DefaultAzureCredential(),
+        new ServiceBusClientOptions { TransportType = ServiceBusTransportType.AmqpWebSockets }));
+    builder.Services.AddHostedService<ServiceBusOrderWorker>();
+}
+else if (builder.Configuration.GetValue("EventConsumer:Enabled", true))
     builder.Services.AddHostedService<OrderEventPollingWorker>();
 
 var app = builder.Build();
-if (!string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Default")))
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers["X-Service-Instance"] = Environment.MachineName;
+        context.Response.Headers["X-Trace-ID"] = Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier;
+        return Task.CompletedTask;
+    });
+    using var logScope = app.Logger.BeginScope(new Dictionary<string, object?>
+    {
+        ["TraceId"] = Activity.Current?.TraceId.ToString(), ["Instance"] = Environment.MachineName,
+    });
+    await next();
+});
+if (app.Configuration.GetValue("Database:MigrateOnStartup", true) && !string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Default")))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<FulfilmentDbContext>();
@@ -77,6 +105,12 @@ if (!string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Default"))
     }
     if (db.ChangeTracker.HasChanges())
         db.SaveChanges();
+}
+
+if (app.Configuration.GetValue("MigrateOnly", false))
+{
+    await app.DisposeAsync();
+    return;
 }
 
 if (app.Environment.IsDevelopment())

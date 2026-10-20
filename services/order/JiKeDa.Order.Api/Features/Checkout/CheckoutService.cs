@@ -236,6 +236,7 @@ public sealed class CheckoutService
                 totalAmount = order.Total,
                 occurredAt = now,
                 correlationId,
+                traceParent = System.Diagnostics.Activity.Current?.Id,
             }, Json),
         });
 

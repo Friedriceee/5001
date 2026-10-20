@@ -7,7 +7,9 @@ RUN dotnet restore JiKeDa.Gateway.csproj
 COPY . ./
 RUN dotnet publish JiKeDa.Gateway.csproj -c Release -o /app/publish --no-restore /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
+USER root
+RUN apk upgrade --no-cache && apk add --no-cache bash
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080 \
     DOTNET_EnableDiagnostics=0 \
