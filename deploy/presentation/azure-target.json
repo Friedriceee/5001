@@ -8,5 +8,9 @@
   "registry": "jikeda5001m1apy24jqzjhch2.azurecr.io",
   "serviceBusNamespace": "jikeda5001-m1-events-apy24jqzjhch2.servicebus.windows.net",
   "publicHost": "jikeda5001-m1-apy24jqzjhch2.eastus2.cloudapp.azure.com",
-  "appInsightsResourceId": "/subscriptions/ffbec78a-8728-40c8-ae3f-fd24d15b9a22/resourceGroups/rg-jikeda5001-m1-demo/providers/Microsoft.Insights/components/jikeda5001-m1-insights"
+  "appInsightsResourceId": "/subscriptions/ffbec78a-8728-40c8-ae3f-fd24d15b9a22/resourceGroups/rg-jikeda5001-m1-demo/providers/Microsoft.Insights/components/jikeda5001-m1-insights",
+  "oidcSubjects": [
+    "repo:Friedriceee@145826973/5001@1423121962:ref:refs/heads/main",
+    "repo:Friedriceee@145826973/5001@1423121962:ref:refs/heads/feat/presentation-readiness"
+  ]
 }
