@@ -9,8 +9,8 @@ const loading = ref(false)
 const form = reactive({ username: '', password: '', merchantName: '', merchantAddress: '', contact: '', dishType: '', openHour: 9, closeHour: 21, walletPassword: '' })
 
 async function submit() {
-  if (form.username.trim().length < 3 || form.password.length < 6 || !form.merchantName.trim() || !form.merchantAddress.trim() || !form.contact.trim() || form.walletPassword.length < 6) {
-    ElMessage.warning('Complete all required fields and use passwords of at least 6 characters.')
+  if (form.username.trim().length < 3 || form.password.length < 8 || !form.merchantName.trim() || !form.merchantAddress.trim() || !form.contact.trim() || form.walletPassword.length < 6) {
+    ElMessage.warning('Complete all required fields, use a login password of at least 8 characters, and a wallet password of at least 6 characters.')
     return
   }
   loading.value = true

@@ -68,6 +68,9 @@ if (jwtEnabled)
 }
 
 app.MapHealthChecks("/health", new HealthCheckOptions());
+// The browser API client uses /api as its base URL, so expose the same liveness
+// check there as well. This keeps the landing-page probe on the proxied origin.
+app.MapHealthChecks("/api/health", new HealthCheckOptions());
 app.MapReverseProxy();
 
 app.Run();

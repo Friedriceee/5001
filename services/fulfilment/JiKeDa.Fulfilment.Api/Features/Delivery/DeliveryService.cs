@@ -8,8 +8,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace JiKeDa.Fulfilment.Api.Features.Delivery;
 
-public sealed record AvailableDeliveryResponse(int OrderId, string Zone, int AddressId, decimal TotalAmount, DateTime OrderedAtUtc);
-public sealed record DeliveryResponse(int OrderId, int RiderId, string Status, int AddressId, decimal TotalAmount,
+public sealed record AvailableDeliveryResponse(int OrderId, string Zone, int AddressId, string? ContactName, string? PhoneNumber,
+    string? DeliveryAddress, string? HouseNumber, decimal TotalAmount, DateTime OrderedAtUtc);
+public sealed record DeliveryResponse(int OrderId, int RiderId, string Status, int AddressId, string? ContactName, string? PhoneNumber,
+    string? DeliveryAddress, string? HouseNumber, decimal TotalAmount,
     DateTime AssignedAtUtc, DateTime? PickedUpAtUtc, DateTime? DeliveringAtUtc, DateTime? CompletedAtUtc);
 public sealed class DeliveryActionRequest { [Required, MaxLength(40)] public string Action { get; set; } = string.Empty; }
 public enum DeliveryOutcome { Success, NotFound, NotReady, AlreadyTaken, RiderIneligible, InvalidAction, InvalidTransition }
@@ -21,7 +23,8 @@ public sealed class DeliveryService(FulfilmentDbContext db, TimeProvider timePro
     public async Task<IReadOnlyList<AvailableDeliveryResponse>> AvailableAsync(CancellationToken cancellationToken) =>
         await db.Orders.AsNoTracking().Where(o => o.Status == FulfilmentOrderStatus.ReadyForDelivery)
             .Where(o => !db.Deliveries.Any(d => d.OrderId == o.Id)).OrderBy(o => o.OccurredAtUtc).Take(100)
-            .Select(o => new AvailableDeliveryResponse(o.ExternalOrderId, "ZoneA", o.AddressId, o.TotalAmount, o.OccurredAtUtc)).ToListAsync(cancellationToken);
+            .Select(o => new AvailableDeliveryResponse(o.ExternalOrderId, "ZoneA", o.AddressId, o.ContactName, o.PhoneNumber,
+                o.DeliveryAddress, o.HouseNumber, o.TotalAmount, o.OccurredAtUtc)).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<DeliveryResponse>> MineAsync(int riderId, CancellationToken cancellationToken)
     {
@@ -104,7 +107,8 @@ public sealed class DeliveryService(FulfilmentDbContext db, TimeProvider timePro
     }
 
     private static DeliveryResponse ToResponse(RiderDelivery delivery, FulfilmentOrder order) => new(order.ExternalOrderId, delivery.RiderId, delivery.Status.ToString(),
-        order.AddressId, order.TotalAmount, delivery.AssignedAtUtc, delivery.PickedUpAtUtc, delivery.DeliveringAtUtc, delivery.CompletedAtUtc);
+        order.AddressId, order.ContactName, order.PhoneNumber, order.DeliveryAddress, order.HouseNumber,
+        order.TotalAmount, delivery.AssignedAtUtc, delivery.PickedUpAtUtc, delivery.DeliveringAtUtc, delivery.CompletedAtUtc);
 }
 
 [ApiController, Route("api/riders"), Authorize(Roles = Roles.Rider)]

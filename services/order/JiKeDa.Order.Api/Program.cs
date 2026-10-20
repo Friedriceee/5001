@@ -4,6 +4,7 @@ using JiKeDa.Order.Api.Clients;
 using JiKeDa.Order.Api.Common;
 using JiKeDa.Order.Api.Data;
 using JiKeDa.Order.Api.Features.Cart;
+using JiKeDa.Order.Api.Features.Admin;
 using JiKeDa.Order.Api.Features.Checkout;
 using JiKeDa.Order.Api.Features.Outbox;
 using JiKeDa.Order.Api.Features.Pricing;
@@ -76,9 +77,15 @@ builder.Services.AddHttpClient<ICatalogClient, CatalogClient>(client =>
     client.BaseAddress = new Uri(builder.Configuration["Services:CatalogBaseUrl"] ?? "http://catalog:8080/");
     client.Timeout = TimeSpan.FromSeconds(10);
 });
+builder.Services.AddHttpClient<IFulfilmentStatusClient, FulfilmentStatusClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Services:FulfilmentBaseUrl"] ?? "http://fulfilment:8080/");
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
 builder.Services.AddScoped<PricingService>();
 builder.Services.AddScoped<CartService>();
 builder.Services.AddScoped<CheckoutService>();
+builder.Services.AddScoped<AdminService>();
 builder.Services.AddSingleton<OutboxWorker>();
 if (builder.Configuration.GetValue("Outbox:Enabled", true))
     builder.Services.AddHostedService(sp => sp.GetRequiredService<OutboxWorker>());

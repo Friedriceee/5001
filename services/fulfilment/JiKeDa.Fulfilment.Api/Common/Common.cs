@@ -34,6 +34,7 @@ public static class Roles
     public const string Customer = "Customer";
     public const string Merchant = "Merchant";
     public const string Rider = "Rider";
+    public const string Service = "Service";
 }
 
 public static class ClaimsPrincipalExtensions

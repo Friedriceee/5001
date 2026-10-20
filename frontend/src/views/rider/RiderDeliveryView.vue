@@ -77,12 +77,18 @@ onMounted(refresh)
       <el-table v-loading="loadingAvailable" :data="available" stripe>
         <el-table-column prop="orderId" label="Order #" width="100" />
         <el-table-column prop="zone" label="Zone" width="120" />
-        <el-table-column prop="kitchenStatus" label="Kitchen" width="150" />
+        <el-table-column label="Kitchen" width="150">Ready for pickup</el-table-column>
         <el-table-column label="Amount" width="120">
-          <template #default="scope">{{ formatYuan(scope.row.price) }}</template>
+          <template #default="scope">{{ formatYuan(scope.row.totalAmount) }}</template>
         </el-table-column>
-        <el-table-column prop="deliveryAddress" label="Delivery Address" min-width="200" />
-        <el-table-column prop="contactName" label="Contact" width="120" />
+        <el-table-column label="Delivery Address" min-width="200">
+          <template #default="scope">
+            {{ scope.row.deliveryAddress || `Address #${scope.row.addressId}` }}{{ scope.row.houseNumber ? `, ${scope.row.houseNumber}` : '' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="Contact" min-width="170">
+          <template #default="scope">{{ scope.row.contactName || '—' }} · {{ scope.row.phoneNumber || '—' }}</template>
+        </el-table-column>
         <el-table-column label="Action" width="120" fixed="right">
           <template #default="scope">
             <el-button link type="primary" @click="accept(scope.row)">Accept</el-button>
@@ -100,21 +106,26 @@ onMounted(refresh)
           <template #default="scope">{{ deliveryStatusText(scope.row.status) }}</template>
         </el-table-column>
         <el-table-column label="Amount" width="120">
-          <template #default="scope">{{ formatYuan(scope.row.price) }}</template>
+          <template #default="scope">{{ formatYuan(scope.row.totalAmount) }}</template>
         </el-table-column>
-        <el-table-column prop="deliveryAddress" label="Delivery Address" min-width="200" />
+        <el-table-column label="Delivery Address" min-width="200">
+          <template #default="scope">
+            {{ scope.row.deliveryAddress || `Address #${scope.row.addressId}` }}{{ scope.row.houseNumber ? `, ${scope.row.houseNumber}` : '' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="Contact" min-width="170">
+          <template #default="scope">{{ scope.row.contactName || '—' }} · {{ scope.row.phoneNumber || '—' }}</template>
+        </el-table-column>
         <el-table-column label="Action" width="160" fixed="right">
           <template #default="scope">
             <el-button
               v-if="canAdvance(scope.row.status)"
               link
               type="primary"
-              :disabled="scope.row.status === 'Assigned' && !scope.row.readyForPickup"
               @click="advance(scope.row)"
             >
               {{ nextDeliveryAction(scope.row.status).label }}
             </el-button>
-            <span v-if="scope.row.status === 'Assigned' && !scope.row.readyForPickup" class="waiting">Waiting for kitchen</span>
             <span v-else-if="!canAdvance(scope.row.status)">—</span>
           </template>
         </el-table-column>

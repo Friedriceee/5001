@@ -24,7 +24,7 @@ describe('cart store', () => {
     merchants: [{
       merchantId: 1,
       merchantName: 'Demo Merchant',
-      items: [{ id: 7, dishId: 10, dishName: 'A', unitPrice: 12, dishNum: 2, lineTotal: 24 }],
+      items: [{ id: 7, dishId: 10, dishName: 'A', unitPrice: 12, quantity: 2, lineTotal: 24 }],
       subtotal: 24,
       discount: 3,
       total: 21,
@@ -42,7 +42,7 @@ describe('cart store', () => {
     await cart.load()
 
     expect(cart.items).toHaveLength(1)
-    expect(cart.items[0]).toMatchObject({ id: 7, merchantId: 1, name: 'A', price: 12, dishNum: 2 })
+    expect(cart.items[0]).toMatchObject({ id: 7, merchantId: 1, name: 'A', price: 12, quantity: 2 })
     expect(cart.totalCount).toBe(2)
     expect(cart.subtotal).toBe(24)
     expect(cart.discount).toBe(3)
@@ -54,7 +54,7 @@ describe('cart store', () => {
     const cart = useCartStore()
     await cart.addItem({ id: 10, name: 'A' })
 
-    expect(api.addCartItem).toHaveBeenCalledWith({ dishId: 10, dishNum: 1 })
+    expect(api.addCartItem).toHaveBeenCalledWith({ dishId: 10, quantity: 1 })
     expect(cart.totalCount).toBe(3)
     expect(cart.total).toBe(33)
   })
@@ -66,7 +66,7 @@ describe('cart store', () => {
     await cart.setQuantity(7, 1)
     await cart.removeItem(7)
 
-    expect(api.updateCartItem).toHaveBeenCalledWith(7, { dishNum: 1 })
+    expect(api.updateCartItem).toHaveBeenCalledWith(7, { quantity: 1 })
     expect(api.deleteCartItem).toHaveBeenCalledWith(7)
     expect(cart.items).toEqual([])
   })

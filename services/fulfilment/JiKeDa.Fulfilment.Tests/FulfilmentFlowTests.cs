@@ -7,6 +7,8 @@ using JiKeDa.Fulfilment.Api.Features.Merchant;
 using JiKeDa.Fulfilment.Api.Features.Tracking;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
+using JiKeDa.Fulfilment.Api.Common;
 using NUnit.Framework;
 
 namespace JiKeDa.Fulfilment.Tests;
@@ -84,6 +86,8 @@ public sealed class FulfilmentFlowTests
         {
             Assert.That(order.Status, Is.EqualTo(FulfilmentOrderStatus.Completed));
             Assert.That(rider.ActiveDeliveryCount, Is.Zero);
+            Assert.That(merchantOrder.Status, Is.EqualTo("ReadyForDelivery"));
+            Assert.That(merchantOrder.OverallStatus, Is.EqualTo("Completed"));
             Assert.That(merchantOrder.RiderName, Is.EqualTo("Rider One"));
             Assert.That(merchantOrder.RiderPhone, Is.EqualTo("13800000000"));
             Assert.That(merchantOrder.DeliveryStatus, Is.EqualTo("Completed"));
@@ -93,8 +97,26 @@ public sealed class FulfilmentFlowTests
         }));
     }
 
+    [Test]
+    public async Task Internal_status_read_model_returns_the_latest_order_status()
+    {
+        _events.Messages.Add(Message(1, 44, [new(1, 7, "Noodles", 1, 12m)]));
+        await new OrderEventConsumer(_db, _events, TimeProvider.System).RunOnceAsync(CancellationToken.None);
+        var order = await _db.Orders.SingleAsync();
+        order.Status = FulfilmentOrderStatus.Completed;
+        await _db.SaveChangesAsync();
+
+        var action = await new OrderStatusesController(_db).Get([44, 999], CancellationToken.None);
+        var ok = (OkObjectResult)action.Result!;
+        var envelope = (ApiResult<IReadOnlyList<FulfilmentOrderStatusResponse>>)ok.Value!;
+
+        Assert.That(envelope.Data!.Single(), Is.EqualTo(new FulfilmentOrderStatusResponse(44, "Completed")));
+    }
+
     private static OrderEvent Message(long eventId, int orderId, IReadOnlyList<OrderConfirmedLine> lines) => new(eventId, "OrderConfirmed",
-        JsonSerializer.SerializeToElement(new OrderConfirmedEvent(orderId, 1, 1, 0, lines, 5m, lines.Sum(l => l.UnitPrice * l.Quantity) + 5m, DateTime.UtcNow, "test")));
+        JsonSerializer.SerializeToElement(new OrderConfirmedEvent(orderId, 1, 1,
+            new OrderConfirmedAddress("Demo Customer", "13800000000", "1 Campus Drive", "#01-01"),
+            0, lines, 5m, lines.Sum(l => l.UnitPrice * l.Quantity) + 5m, DateTime.UtcNow, "test")));
 
     private sealed class FakeOrderEvents : IOrderEventClient
     {

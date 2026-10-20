@@ -26,6 +26,8 @@ public sealed class ApiTestFactory : WebApplicationFactory<Program>
     public const string Audience = "JiKeDa.Client";
 
     private readonly SqliteConnection _connection = new("Data Source=:memory:");
+    public FakeMerchantProfiles Merchants { get; } = new();
+    public FakeRiderProfiles Riders { get; } = new();
 
     public ApiTestFactory()
     {
@@ -43,6 +45,10 @@ public sealed class ApiTestFactory : WebApplicationFactory<Program>
                 s => s.ServiceType == typeof(DbContextOptions<IdentityDbContext>));
             services.Remove(descriptor);
             services.AddDbContext<IdentityDbContext>(options => options.UseSqlite(_connection));
+            foreach (var item in services.Where(item => item.ServiceType == typeof(IMerchantProfileClient) || item.ServiceType == typeof(IRiderProfileClient)).ToList())
+                services.Remove(item);
+            services.AddSingleton<IMerchantProfileClient>(Merchants);
+            services.AddSingleton<IRiderProfileClient>(Riders);
         });
     }
 
@@ -80,4 +86,20 @@ public sealed class ApiTestFactory : WebApplicationFactory<Program>
         if (disposing) _connection.Dispose();
         base.Dispose(disposing);
     }
+}
+
+public sealed class FakeMerchantProfiles : IMerchantProfileClient
+{
+    private int _nextId = 999;
+    public List<int> Deleted { get; } = [];
+    public Task<int> CreateAsync(RegisterMerchantRequest request, CancellationToken cancellationToken) => Task.FromResult(Interlocked.Increment(ref _nextId));
+    public Task DeleteAsync(int id, CancellationToken cancellationToken) { Deleted.Add(id); return Task.CompletedTask; }
+}
+
+public sealed class FakeRiderProfiles : IRiderProfileClient
+{
+    private int _nextId = 1999;
+    public List<int> Deleted { get; } = [];
+    public Task<int> CreateAsync(RegisterRiderRequest request, CancellationToken cancellationToken) => Task.FromResult(Interlocked.Increment(ref _nextId));
+    public Task DeleteAsync(int id, CancellationToken cancellationToken) { Deleted.Add(id); return Task.CompletedTask; }
 }
