@@ -53,7 +53,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci --no-audit --no-fund
@@ -62,7 +62,7 @@ jobs:
 
   security:
     runs-on: ubuntu-latest
-    # 依赖漏洞扫描。Sprint 1 阶段先保持非阻断，但仍保留扫描结果和日志。
+    # Dependency checks retain their reports; npm High/Critical findings block the build.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -75,10 +75,9 @@ jobs:
           dotnet list package --vulnerable --include-transitive
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: npm 依赖漏洞
         working-directory: frontend
-        continue-on-error: true
         run: |
           npm audit --audit-level=high
 
@@ -92,7 +91,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Start the full stack
         run: |
           echo "JWT_KEY=$(openssl rand -hex 32)" >> .env
@@ -150,7 +149,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Start the microservices
         run: docker compose -f docker-compose.microservices.yml up -d --build --wait --wait-timeout 300
       - name: Smoke test
@@ -174,3 +173,10 @@ jobs:
           version=8.21.2
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_linux_x64.tar.gz" | tar -xz gitleaks
           ./gitleaks detect --source . --redact --no-banner --exit-code 1
+
+  scaling-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify sustained-load thresholds, cooldown and missing metrics
+        run: python3 -m unittest discover -s scripts/presentation -p 'test_*.py' -v

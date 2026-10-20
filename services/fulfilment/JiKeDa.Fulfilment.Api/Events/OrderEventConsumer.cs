@@ -76,11 +76,15 @@ public sealed class OrderEventConsumer(FulfilmentDbContext db, IOrderEventClient
         return batch.Count;
     }
 
-    private async Task ConsumeAsync(OrderEvent message, CancellationToken cancellationToken)
+    public Task ConsumeQueueAsync(OrderEvent message, CancellationToken cancellationToken) =>
+        ConsumeAsync(message, cancellationToken, useCheckpoint: false);
+
+    private async Task ConsumeAsync(OrderEvent message, CancellationToken cancellationToken, bool useCheckpoint = true)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var checkpoint = await db.EventCheckpoints.SingleOrDefaultAsync(c => c.Consumer == ConsumerName, cancellationToken);
-        if ((checkpoint?.LastEventId ?? 0) >= message.Id) return;
+        if (useCheckpoint && (checkpoint?.LastEventId ?? 0) >= message.Id) return;
+        if (!useCheckpoint && await db.ProcessedOrderEvents.AnyAsync(e => e.Id == message.Id, cancellationToken)) return;
         if (message.Type == "OrderConfirmed")
         {
             var order = JsonSerializer.Deserialize<OrderConfirmedEvent>(message.Payload.GetRawText(), Json)
@@ -103,10 +107,25 @@ public sealed class OrderEventConsumer(FulfilmentDbContext db, IOrderEventClient
                 });
             }
         }
-        if (checkpoint is null) db.EventCheckpoints.Add(new EventCheckpoint { Consumer = ConsumerName, LastEventId = message.Id });
-        else checkpoint.LastEventId = message.Id;
-        await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (useCheckpoint)
+        {
+            if (checkpoint is null) db.EventCheckpoints.Add(new EventCheckpoint { Consumer = ConsumerName, LastEventId = message.Id });
+            else checkpoint.LastEventId = message.Id;
+        }
+        else db.ProcessedOrderEvents.Add(new ProcessedOrderEvent { Id = message.Id, ProcessedAtUtc = timeProvider.GetUtcNow().UtcDateTime });
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateException error) when (!useCheckpoint && error.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            await transaction.DisposeAsync();
+            db.ChangeTracker.Clear();
+            // Only swallow a race if this exact event was durably committed by another consumer.
+            if (!await db.ProcessedOrderEvents.AnyAsync(e => e.Id == message.Id, cancellationToken)) throw;
+        }
     }
 }
 

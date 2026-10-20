@@ -1,3 +1,7 @@
+using Azure.Identity;
+using Azure.Messaging.ServiceBus;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
+using System.Diagnostics;
 using System.Security.Claims;
 using System.Text;
 using JiKeDa.Order.Api.Clients;
@@ -15,6 +19,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+if (!string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+    builder.Services.AddOpenTelemetry().UseAzureMonitor();
+builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 
 builder.Services.AddControllers(options =>
 {
@@ -90,14 +97,54 @@ builder.Services.AddSingleton<OutboxWorker>();
 if (builder.Configuration.GetValue("Outbox:Enabled", true))
     builder.Services.AddHostedService(sp => sp.GetRequiredService<OutboxWorker>());
 
+
+var messagingNamespace = builder.Configuration["Messaging:FullyQualifiedNamespace"];
+if (!string.IsNullOrWhiteSpace(messagingNamespace))
+{
+    var credentials = new DefaultAzureCredential();
+    builder.Services.AddSingleton(new ServiceBusClient(messagingNamespace, credentials,
+        new ServiceBusClientOptions { TransportType = ServiceBusTransportType.AmqpWebSockets }));
+    builder.Services.AddSingleton(sp => sp.GetRequiredService<ServiceBusClient>().CreateSender(builder.Configuration["Messaging:QueueName"] ?? "order-confirmed"));
+    builder.Services.AddSingleton(new Azure.Messaging.ServiceBus.Administration.ServiceBusAdministrationClient(messagingNamespace, credentials));
+    builder.Services.AddSingleton<QueueObservation>();
+    builder.Services.AddHostedService<ServiceBusPublisher>();
+}
+
 var app = builder.Build();
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers["X-Service-Instance"] = Environment.MachineName;
+        context.Response.Headers["X-Trace-ID"] = Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier;
+        return Task.CompletedTask;
+    });
+    using var logScope = app.Logger.BeginScope(new Dictionary<string, object?>
+    {
+        ["TraceId"] = Activity.Current?.TraceId.ToString(), ["Instance"] = Environment.MachineName,
+    });
+    await next();
+});
 
 // Apply migrations at startup when a real database is configured.
-if (!string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Default")))
+if (app.Configuration.GetValue("Database:MigrateOnStartup", true) && !string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Default")))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
     db.Database.Migrate();
+}
+
+if (app.Configuration.GetValue("MigrateOnly", false))
+{
+    await app.DisposeAsync();
+    return;
+}
+
+if (app.Configuration.GetValue<int>("QueueReplayCount") is > 0 and var replayCount)
+{
+    await QueueReplayCommand.RunAsync(app, replayCount);
+    await app.DisposeAsync();
+    return;
 }
 
 if (app.Environment.IsDevelopment())
@@ -112,6 +159,9 @@ app.UseAuthorization();
 app.MapHealthChecks("/health", new HealthCheckOptions());
 app.MapGet("/", () => Results.Ok(new { service = "order", status = "ready" }));
 app.MapControllers();
+if (!string.IsNullOrWhiteSpace(messagingNamespace))
+    app.MapGet("/internal/messaging/status", (QueueObservation state) => Results.Ok(state));
+
 
 app.Run();
 

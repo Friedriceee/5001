@@ -1,3 +1,5 @@
+using Azure.Monitor.OpenTelemetry.AspNetCore;
+using System.Diagnostics;
 using System.Security.Claims;
 using System.Text;
 using JiKeDa.Identity.Api.Common;
@@ -12,6 +14,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+if (!string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+    builder.Services.AddOpenTelemetry().UseAzureMonitor();
+builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 
 builder.Services.AddControllers(options =>
 {
@@ -80,13 +85,33 @@ builder.Services.AddHttpClient<IRiderProfileClient, RiderProfileClient>(client =
 });
 
 var app = builder.Build();
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers["X-Service-Instance"] = Environment.MachineName;
+        context.Response.Headers["X-Trace-ID"] = Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier;
+        return Task.CompletedTask;
+    });
+    using var logScope = app.Logger.BeginScope(new Dictionary<string, object?>
+    {
+        ["TraceId"] = Activity.Current?.TraceId.ToString(), ["Instance"] = Environment.MachineName,
+    });
+    await next();
+});
 
 // Apply migrations at startup when a real database is configured.
-if (!string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Default")))
+if (app.Configuration.GetValue("Database:MigrateOnStartup", true) && !string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Default")))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
     db.Database.Migrate();
+}
+
+if (app.Configuration.GetValue("MigrateOnly", false))
+{
+    await app.DisposeAsync();
+    return;
 }
 
 if (app.Environment.IsDevelopment())

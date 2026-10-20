@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: JiKeDa
+    folder: SWE5001
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

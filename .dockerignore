@@ -1,0 +1,11 @@
+.git
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/__pycache__
+**/.env
+**/.azure.local
+**/.cloud.local
+output
+tmp

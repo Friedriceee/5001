@@ -1,0 +1,12 @@
+{
+  "subscriptionId": "ffbec78a-8728-40c8-ae3f-fd24d15b9a22",
+  "tenantId": "ed1abbe3-6b1f-44e2-adf7-89b85759b2e4",
+  "clientId": "544afd56-8afb-4526-97fe-94b92c1bce98",
+  "resourceGroup": "rg-jikeda5001-m1-demo",
+  "vmName": "jikeda5001-m1-vm",
+  "registryName": "jikeda5001m1apy24jqzjhch2",
+  "registry": "jikeda5001m1apy24jqzjhch2.azurecr.io",
+  "serviceBusNamespace": "jikeda5001-m1-events-apy24jqzjhch2.servicebus.windows.net",
+  "publicHost": "jikeda5001-m1-apy24jqzjhch2.eastus2.cloudapp.azure.com",
+  "appInsightsResourceId": "/subscriptions/ffbec78a-8728-40c8-ae3f-fd24d15b9a22/resourceGroups/rg-jikeda5001-m1-demo/providers/Microsoft.Insights/components/jikeda5001-m1-insights"
+}

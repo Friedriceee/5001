@@ -12,9 +12,11 @@ public sealed class FulfilmentDbContext(DbContextOptions<FulfilmentDbContext> op
     public DbSet<Rider> Riders => Set<Rider>();
     public DbSet<RiderDelivery> Deliveries => Set<RiderDelivery>();
     public DbSet<EventCheckpoint> EventCheckpoints => Set<EventCheckpoint>();
+    public DbSet<ProcessedOrderEvent> ProcessedOrderEvents => Set<ProcessedOrderEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<ProcessedOrderEvent>().Property(e => e.Id).ValueGeneratedNever();
         modelBuilder.Entity<FulfilmentOrder>(entity =>
         {
             entity.ToTable("FulfilmentOrders");
