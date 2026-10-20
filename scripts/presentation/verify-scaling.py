@@ -82,11 +82,17 @@ def verify_queue(release,result):
             wait_for(samples,lambda s:s.get('queueReady') and s.get('queueActive',0)>=5,40)
         except Exception:
             run(['docker','unpause',consumer]); raise
+    def resume_consumer():
+        if run(['docker','inspect','--format','{{.State.Paused}}',consumer]).strip()=='true':
+            run(['docker','unpause',consumer])
+    resume_timer=threading.Timer(15,resume_consumer)
+    resume_timer.start()
     try:
         scaled=wait_for(samples,lambda s:s['replicas'].get('fulfilment')==2,90)
         result['during']=scaled['replicas']
     finally:
-        run(['docker','unpause',consumer])
+        resume_timer.cancel()
+        resume_consumer()
     idle=wait_for(samples,lambda s:s.get('queueReady') and s.get('queueActive')==0 and s['replicas'].get('fulfilment')==1,180)
     result.update(after=idle['replicas'],deadLetters=idle.get('queueDeadLetters'),
                   ordersAfter=int(count_sql('fulfilment_db','SELECT count(*) FROM "Orders";')))

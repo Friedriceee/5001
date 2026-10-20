@@ -411,3 +411,14 @@ SQLite 上 18 个接口测试（使用与 Catalog 规则一致的内存 Catalog 
 
 ### 暂不包含
 管理员优惠券管理与发放（仍在单体）、订单取消与退款、商家接单和骑手配送（Fulfilment，member5）。
+
+
+## SWE5001 cloud presentation revision (2026-10-20)
+
+- Public business routes and JSON bodies remain compatible with `main`.
+- Every API response includes `X-Service-Instance` and `X-Trace-ID`; Catalog responses through its router also expose `X-Catalog-Instance` for replica evidence. Correlation IDs continue across services.
+- Gateway ingress applies a configurable request budget (default 500 requests/second/source). Health probes are exempt. A rejected request returns HTTP 429. On the demo VM the edge proxy shares a source budget; this is not a per-end-user quota.
+- With `Messaging__FullyQualifiedNamespace` configured, Order publishes `OrderConfirmed` from its transactional outbox to the private Service Bus queue `order-confirmed`. Fulfilment acknowledges only after its projection and per-event inbox receipt commit. Duplicates and out-of-order delivery do not create additional business orders.
+- `GET /internal/messaging/status` exists only on the private Order port, is not routed by Gateway, and returns active count, dead-letter count and observation timestamp for the local controller. No cloud credentials are returned.
+- `QueueReplayCount=1..1000` is an operator-only container invocation for explicitly labelled duplicate replay tests; it is not a public endpoint.
+- Runtime replicas use `Database__MigrateOnStartup=false`; the release procedure runs one `MigrateOnly=true` job per service first. Local default migration behaviour remains compatible.

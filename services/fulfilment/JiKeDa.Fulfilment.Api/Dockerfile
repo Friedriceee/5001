@@ -6,9 +6,9 @@ RUN dotnet restore JiKeDa.Fulfilment.Api.csproj
 COPY . ./
 RUN dotnet publish JiKeDa.Fulfilment.Api.csproj -c Release -o /app/publish --no-restore /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
 USER root
-RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN apk upgrade --no-cache && apk add --no-cache bash
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080 DOTNET_EnableDiagnostics=0 DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 COPY --from=build /app/publish .

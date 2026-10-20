@@ -18,37 +18,42 @@ JiKeDa lets customers, merchants, riders and administrators work on the same ord
 
 The full index is in [docs/README.md](docs/README.md).
 
-## Incremental microservice foundation
+## SWE5001 microservices and cloud demo
 
-The SWE5001 refactor is being added beside the working monolith so the current system remains available during migration. The foundation contains a YARP gateway plus empty Identity, Catalog, Order, and Fulfilment services. Business features are migrated in later pull requests.
+The four services now contain the migrated business flow: Identity, Catalog, Order,
+and Fulfilment/Delivery. YARP routes browser API requests, while each service owns
+its PostgreSQL logical database and credentials. Local development retains the
+HTTP event-feed fallback; the cloud presentation configuration uses Azure Service
+Bus with a transactional outbox and idempotent inbox.
 
-```bash
+```sh
 docker compose -f docker-compose.microservices.yml up -d --build --wait
 node scripts/smoke/foundation-smoke.mjs
 docker compose -f docker-compose.microservices.yml down
 ```
 
-Local endpoints:
+Local Gateway is `http://localhost:5000`; direct service ports are 5101–5104 and
+PostgreSQL is 5433. These are local debugging ports. The cloud override exposes
+only HTTPS/HTTP ingress, with operator service ports bound to loopback.
 
-| Component | URL |
-|---|---|
-| Gateway | `http://localhost:5000` |
-| Identity | `http://localhost:5101` |
-| Catalog | `http://localhost:5102` |
-| Order | `http://localhost:5103` |
-| Fulfilment and Delivery | `http://localhost:5104` |
-| PostgreSQL | `localhost:5433` |
+The budget deployment reuses one Azure VM, ACR, Service Bus and Application Insights.
+A host controller scales Catalog on actual request rate and Fulfilment on actual
+queue depth, independently from one to two replicas, with cooldown and scale-in.
+Prometheus/Grafana display the real observations. This is container-level scaling
+inside one host; ACA, managed PostgreSQL and cross-host high availability remain
+outside this deployment.
 
-Use `docker-compose.yml` for the original monolith and `docker-compose.microservices.yml` for the new foundation. The two stacks use different database ports and volumes. Service boundaries and initial request/event examples are documented in [the API contract](docs/api-contract.md) and `contracts/`.
+- [Presentation and operator runbook](docs/presentation/5001-cloud-demo-runbook.md)
+- Cloud Compose and dashboard: `deploy/presentation/`
+- Release, rollback and live validation: `scripts/presentation/`
+- The `CD` workflow builds/scans seven versioned ACR images and deploys the exact
+  commit through OIDC scoped to the named demo VM. The previous monolith workflow
+  is preserved as `Legacy monolith CD` for manual use.
+- Keep runtime passwords and Azure credentials outside Git. The checked-in Azure
+  target contains resource IDs and names only.
 
-## Architecture in one picture
-
-```
-Browser ─► nginx (serves the Vue app, proxies /api) ─► ASP.NET Core 8 API (1..N replicas) ─► PostgreSQL 16
-                                                              └─► payment gateway (simulated, behind an interface)
-```
-
-The API is one deployable made of feature modules (identity, catalog, cart, pricing, checkout, inventory, orders, rider dispatch, admin and audit). It keeps no session, so replicas can be added behind the proxy. The proposal describes four services on Azure; what was built differs, and [the project report](docs/report/project-report.md) states how and why.
+The commands below describe the original monolith for compatibility. Use the
+microservices configuration above for the SWE5001 cloud presentation.
 
 ## Run it
 
@@ -90,7 +95,7 @@ The script starts the stack, compares one API replica with several behind nginx 
 |---|---|
 | `ci.yml` | backend tests (with PostgreSQL), frontend tests and build, dependency scan, secret scan, container stack smoke test |
 | `codeql.yml` | static analysis for C# and JavaScript |
-| `cd.yml` | after green CI on `main`: build images, Trivy scan, push to GHCR, deploy to staging, health check, smoke test, automatic rollback |
+| `cd.yml` | after green CI on `main` or manual feature release: build seven microservice/database images, Trivy gate, push ACR, exact-commit cloud deployment, health/business checks and application rollback |
 | `scale-test.yml` | manual: 1 vs N replicas under k6 load and the consistency race |
 
 Branching, commit rules and review: [CONTRIBUTING.md](CONTRIBUTING.md). Pipeline design: [docs/devops/pipeline-design.md](docs/devops/pipeline-design.md).
