@@ -5,6 +5,7 @@ using JiKeDa.Fulfilment.Api.Data;
 using JiKeDa.Fulfilment.Api.Events;
 using JiKeDa.Fulfilment.Api.Features.Delivery;
 using JiKeDa.Fulfilment.Api.Features.Merchant;
+using JiKeDa.Fulfilment.Api.Features.Tracking;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
@@ -53,6 +54,7 @@ builder.Services.AddHttpClient<IOrderEventClient, OrderEventClient>(client =>
 builder.Services.AddScoped<OrderEventConsumer>();
 builder.Services.AddScoped<MerchantFulfilmentService>();
 builder.Services.AddScoped<DeliveryService>();
+builder.Services.AddScoped<CustomerTrackingService>();
 if (builder.Configuration.GetValue("EventConsumer:Enabled", true))
     builder.Services.AddHostedService<OrderEventPollingWorker>();
 
@@ -68,7 +70,7 @@ if (!string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("Default"))
     {
         db.Riders.Add(new JiKeDa.Fulfilment.Api.Features.Rider
         {
-            Id = 1, Name = "Rider One", Zone = "ZoneA", IsActive = true, IsAvailable = true, Capacity = 3,
+            Id = 1, Name = "Rider One", PhoneNumber = "13800000000", Zone = "ZoneA", IsActive = true, IsAvailable = true, Capacity = 3,
         });
         db.SaveChanges();
     }

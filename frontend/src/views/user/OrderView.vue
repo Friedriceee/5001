@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { cancelOrder, listOrders } from '@/api/order'
+import { listCustomerDeliveryTracking } from '@/api/fulfilment'
 import { isPending, orderStatusText } from '@/utils/order'
 import { formatYuan } from '@/utils/money'
 
@@ -36,7 +37,23 @@ async function loadOrders() {
   loading.value = true
   try {
     if (!userId.value) return
-    orders.value = await listOrders(userId.value)
+    const [history, tracking] = await Promise.all([
+      listOrders(userId.value),
+      listCustomerDeliveryTracking().catch(() => []),
+    ])
+    const trackingByOrder = new Map(tracking.map(item => [item.orderId, item]))
+    orders.value = history.map((order) => {
+      const courier = trackingByOrder.get(order.id)
+      return {
+        ...order,
+        // Keep the legacy view contract while accepting the microservice names.
+        price: order.price ?? order.total,
+        fulfillmentStatus: order.fulfillmentStatus ?? courier?.kitchenStatus,
+        deliveryStatus: order.deliveryStatus ?? courier?.deliveryStatus,
+        riderName: order.riderName ?? courier?.riderName,
+        riderPhone: order.riderPhone ?? courier?.riderPhone,
+      }
+    })
   } finally {
     loading.value = false
   }
@@ -75,7 +92,7 @@ onMounted(loadOrders)
       <el-table v-loading="loading" :data="orders" stripe>
         <el-table-column prop="id" label="Order ID" width="100" />
         <el-table-column label="Amount" width="130">
-          <template #default="scope">{{ formatYuan(scope.row.price) }}</template>
+          <template #default="scope">{{ formatYuan(scope.row.price ?? scope.row.total) }}</template>
         </el-table-column>
         <el-table-column label="Kitchen" width="150">
           <template #default="scope">{{ kitchenStatusText(scope.row.fulfillmentStatus) }}</template>

@@ -6,7 +6,7 @@ export function createOrder(payload) {
 }
 
 export function listOrders(userId) {
-  return http.get(`/orders/user/${userId}`)
+  return withLegacyRoute(() => http.get('/orders', { silent: true }), () => http.get(`/orders/user/${userId}`))
 }
 
 export function cancelOrder(orderId) {
@@ -20,4 +20,13 @@ export function createAddress(payload) {
 
 export function listAddresses(userId) {
   return http.get(`/user/${userId}/addresses`)
+}
+
+async function withLegacyRoute(primary, legacy) {
+  try {
+    return await primary()
+  } catch (error) {
+    if (![404, 405].includes(error.response?.status)) throw error
+    return legacy()
+  }
 }

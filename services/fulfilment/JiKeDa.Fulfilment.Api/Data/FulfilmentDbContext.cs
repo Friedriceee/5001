@@ -41,9 +41,10 @@ public sealed class FulfilmentDbContext(DbContextOptions<FulfilmentDbContext> op
         modelBuilder.Entity<Rider>(entity =>
         {
             entity.Property(r => r.Name).HasMaxLength(80).IsRequired();
+            entity.Property(r => r.PhoneNumber).HasMaxLength(11);
             entity.Property(r => r.Zone).HasMaxLength(40).IsRequired();
             entity.ToTable(t => t.HasCheckConstraint("CK_Riders_Capacity_Positive", "\"Capacity\" > 0"));
-            entity.HasData(new Rider { Id = 1, Name = "Rider One", Zone = "ZoneA", IsActive = true, IsAvailable = true, Capacity = 3 });
+            entity.HasData(new Rider { Id = 1, Name = "Rider One", PhoneNumber = "13800000000", Zone = "ZoneA", IsActive = true, IsAvailable = true, Capacity = 3 });
         });
         modelBuilder.Entity<RiderDelivery>(entity =>
         {

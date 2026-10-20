@@ -16,6 +16,11 @@
 
 Gateway health 路由为 `/health/identity`、`/health/catalog`、`/health/order` 和 `/health/fulfilment`；Gateway 自身为 `/health`。业务前端完成迁移后只调用 Gateway，直接服务端口仅用于本地调试。
 
+履约追踪补充接口：`GET /api/fulfilment/tracking/orders` 只允许顾客访问，按 JWT
+`profile_id` 返回其订单的厨房进度、整体订单状态、配送状态，以及已接单骑手的
+`riderId`、`riderName`、`riderPhone` 和各配送时间戳。商家订单接口同时返回相同的
+骑手身份/联系方式和 `deliveryStatus`，因此骑手接单后两端可以持续显示该记录直到完成。
+
 ### 数据库归属
 
 本地使用一个 PostgreSQL 容器和四个逻辑数据库：`identity_db`、`catalog_db`、`order_db`、`fulfilment_db`。每个服务只使用自己的连接字符串、DbContext 和迁移。现有单体 `takeout` 数据库在渐进迁移期间保持不变。

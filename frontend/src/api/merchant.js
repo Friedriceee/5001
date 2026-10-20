@@ -40,9 +40,22 @@ export function deleteSpecialOffer(offerId, merchantId) {
 }
 
 export function listMerchantOrders() {
-  return http.get('/merchant/orders')
+  return withLegacyRoute(() => http.get('/fulfilment/orders', { silent: true }), () => http.get('/merchant/orders'))
 }
 
 export function transitionMerchantOrder(orderId, action, reason = null) {
-  return http.put(`/merchant/orders/${orderId}/status`, { action, reason })
+  const payload = { action, reason }
+  return withLegacyRoute(
+    () => http.put(`/fulfilment/orders/${orderId}/status`, payload, { silent: true }),
+    () => http.put(`/merchant/orders/${orderId}/status`, payload),
+  )
+}
+
+async function withLegacyRoute(primary, legacy) {
+  try {
+    return await primary()
+  } catch (error) {
+    if (![404, 405].includes(error.response?.status)) throw error
+    return legacy()
+  }
 }
