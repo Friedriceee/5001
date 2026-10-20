@@ -44,7 +44,7 @@ program = operations / 'bootstrap-deploy.py'
 program.write_bytes(base64.b64decode('{encoded}'))
 log = Path('/opt/jikeda/shared/deployment-{image_tag}.log')
 with log.open('w') as output:
-    result = subprocess.run(['python3', str(program), '--revision', '{revision}', '--image-tag', '{image_tag}'], stdout=output, stderr=subprocess.STDOUT)
+    result = subprocess.run(['python3', '-u', str(program), '--revision', '{revision}', '--image-tag', '{image_tag}'], stdout=output, stderr=subprocess.STDOUT)
 if result.returncode:
     print('DEPLOYMENT_FAILED: inspect the protected server deployment log')
     raise SystemExit(result.returncode)

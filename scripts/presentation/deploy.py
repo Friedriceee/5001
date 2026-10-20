@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import urllib.parse
 import urllib.request
@@ -19,11 +20,24 @@ import urllib.request
 STATE = Path('/opt/jikeda/shared')
 RELEASES = Path('/opt/jikeda/releases')
 OPERATIONS = Path('/opt/jikeda/operations/presentation')
+# Server jobs must report errors directly, without the distribution's interactive
+# crash collector delaying Azure Run Command after a failed subprocess.
+sys.excepthook = sys.__excepthook__
+
+
+def stage(message):
+    print(datetime.datetime.now(datetime.timezone.utc).isoformat() + ' ' + message, flush=True)
 
 
 def run(args, **kwargs):
     kwargs.setdefault('timeout', 180)
-    result = subprocess.run(args, text=True, capture_output=True, **kwargs)
+    try:
+        result = subprocess.run(args, text=True, capture_output=True, **kwargs)
+    except subprocess.TimeoutExpired as error:
+        for output in (error.stdout, error.stderr):
+            if output:
+                print(output.decode(errors='replace')[-12000:] if isinstance(output, bytes) else output[-12000:], flush=True)
+        raise
     if result.returncode:
         # Bootstrap output is retained in the root-only server deployment log.
         # This preserves the failed smoke step without exposing runtime environment values.
@@ -156,11 +170,13 @@ def publish(revision, image_tag):
     with open(STATE / 'deployment.lock', 'a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         previous = json.loads((STATE / 'current-release.json').read_text()) if (STATE / 'current-release.json').exists() else legacy_release()
+        stage('Backing up four databases')
         backup_path = backup(revision)
         source = RELEASES / ('presentation-' + image_tag)
         source.mkdir(parents=True, exist_ok=True)
         source.chmod(0o755)
         os.umask(0o022)
+        stage('Fetching exact source revision')
         if not (source / '.git').exists():
             run(['git', 'init', '-q', str(source)])
             run(['git', '-C', str(source), 'remote', 'add', 'origin', 'https://github.com/Friedriceee/5001.git'])
@@ -186,27 +202,40 @@ def publish(revision, image_tag):
         changed = False
         try:
             compose(release, 'config', '--quiet')
+            stage('Pulling verified release images')
             with tempfile.TemporaryDirectory(prefix='jikeda-registry-') as credentials:
                 docker_env = registry_login(target['registry'], target['tenantId'], credentials)
-                compose(release, 'pull', env=docker_env, timeout=600)
+                docker_env['COMPOSE_PARALLEL_LIMIT'] = '2'
+                # These are the release's seven scanned ACR images. Existing pinned
+                # infrastructure images are reused instead of repulling Docker Hub
+                # on every application release.
+                compose(release, 'pull', 'foundation-db', 'identity', 'catalog', 'order',
+                        'fulfilment', 'gateway', 'frontend', env=docker_env, timeout=600)
             if Path('/etc/systemd/system/jikeda-autoscaler.service').exists():
                 run(['systemctl', 'stop', 'jikeda-autoscaler.service'])
             changed = True
+            stage('Checking database container')
             compose(release, 'up', '-d', '--no-deps', '--wait', 'foundation-db', timeout=180)
             # One migration job per database before any new replica starts.
             for service in ['identity', 'catalog', 'order', 'fulfilment']:
+                stage('Migrating ' + service)
                 compose(release, 'run', '--rm', '--no-deps', '-e', 'Database__MigrateOnStartup=true',
                         '-e', 'MigrateOnly=true', '-e', 'APPLICATIONINSIGHTS_CONNECTION_STRING=', service, timeout=90)
+            stage('Starting application and monitoring containers')
             compose(release, 'up', '-d', '--no-build', '--scale', 'catalog=1', '--scale', 'fulfilment=1',
                     '--wait', '--wait-timeout', '180', timeout=300)
+            stage('Verifying business flow')
             smoke(release)
+            stage('Starting metric-driven autoscaler')
             install_scaler(release)
             (STATE / 'previous-release.json').write_text(json.dumps(previous, indent=2))
             (STATE / 'current-release.json').write_text(json.dumps(release, indent=2))
             (STATE / 'presentation-deployment.json').write_text(json.dumps({'status': 'succeeded', **release}, indent=2))
             print('DEPLOYMENT_OK ' + image_tag)
         except Exception as error:
+            stage('Deployment failed: ' + type(error).__name__)
             if changed:
+                stage('Restoring previous application release')
                 if Path('/etc/systemd/system/jikeda-autoscaler.service').exists():
                     run(['systemctl', 'stop', 'jikeda-autoscaler.service'])
                 compose(previous, 'up', '-d', '--no-build', '--scale', 'catalog=1', '--scale', 'fulfilment=1',
