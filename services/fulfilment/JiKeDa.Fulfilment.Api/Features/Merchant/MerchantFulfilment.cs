@@ -7,9 +7,25 @@ using Microsoft.EntityFrameworkCore;
 
 namespace JiKeDa.Fulfilment.Api.Features.Merchant;
 
-public sealed record MerchantOrderResponse(int OrderId, string Status, string OverallStatus, int AddressId, int NeedUtensils,
-    decimal TotalAmount, DateTime OrderedAtUtc, IReadOnlyList<MerchantOrderLineResponse> Items);
-public sealed record MerchantOrderLineResponse(int DishId, string DishName, int Quantity, decimal UnitPrice);
+public sealed record MerchantOrderResponse(
+    int OrderId,
+    int MerchantId,
+    int CustomerId,
+    DateTime OrderTimestamp,
+    string Status,
+    string OverallStatus,
+    string? RejectionReason,
+    decimal MerchantSubtotal,
+    int ItemCount,
+    string? RiderName,
+    string? RiderPhone,
+    string? DeliveryStatus,
+    IReadOnlyList<MerchantOrderLineResponse> Items,
+    int AddressId,
+    int NeedUtensils,
+    decimal TotalAmount,
+    DateTime OrderedAtUtc);
+public sealed record MerchantOrderLineResponse(int DishId, string DishName, int Quantity, decimal UnitPrice, decimal LineTotal);
 public sealed class MerchantActionRequest
 {
     [Required, MaxLength(40)] public string Action { get; set; } = string.Empty;
@@ -24,7 +40,10 @@ public sealed class MerchantFulfilmentService(FulfilmentDbContext db, TimeProvid
     {
         var work = await db.MerchantFulfilments.AsNoTracking().Where(f => f.MerchantId == merchantId)
             .Include(f => f.Order).ThenInclude(o => o.Lines).OrderByDescending(f => f.Order.OccurredAtUtc).Take(100).ToListAsync(cancellationToken);
-        return work.Select(ToResponse).ToList();
+        var orderIds = work.Select(f => f.OrderId).ToArray();
+        var deliveries = await db.Deliveries.AsNoTracking().Include(d => d.Rider)
+            .Where(d => orderIds.Contains(d.OrderId)).ToDictionaryAsync(d => d.OrderId, cancellationToken);
+        return work.Select(f => ToResponse(f, deliveries.GetValueOrDefault(f.OrderId))).ToList();
     }
 
     public async Task<MerchantActionResult> AdvanceAsync(int externalOrderId, int merchantId, MerchantActionRequest request, CancellationToken cancellationToken)
@@ -56,7 +75,9 @@ public sealed class MerchantFulfilmentService(FulfilmentDbContext db, TimeProvid
                 : all.Any(f => f.Status is MerchantFulfilmentStatus.Preparing or MerchantFulfilmentStatus.Accepted)
                     ? FulfilmentOrderStatus.Preparing : FulfilmentOrderStatus.AwaitingMerchant;
         await db.SaveChangesAsync(cancellationToken);
-        return new(MerchantActionOutcome.Success, ToResponse(fulfilment), null);
+        var delivery = await db.Deliveries.AsNoTracking().Include(d => d.Rider)
+            .SingleOrDefaultAsync(d => d.OrderId == fulfilment.OrderId, cancellationToken);
+        return new(MerchantActionOutcome.Success, ToResponse(fulfilment, delivery), null);
     }
 
     private static bool IsAllowed(MerchantFulfilmentStatus current, MerchantFulfilmentStatus next, string? reason) =>
@@ -69,10 +90,29 @@ public sealed class MerchantFulfilmentService(FulfilmentDbContext db, TimeProvid
             _ => false,
         };
 
-    private static MerchantOrderResponse ToResponse(MerchantOrderFulfilment work) => new(work.Order.ExternalOrderId, work.Status.ToString(), work.Order.Status.ToString(),
-        work.Order.AddressId, work.Order.NeedUtensils, work.Order.TotalAmount, work.Order.OccurredAtUtc,
-        work.Order.Lines.Where(l => l.MerchantId == work.MerchantId).OrderBy(l => l.DishId)
-            .Select(l => new MerchantOrderLineResponse(l.DishId, l.DishName, l.Quantity, l.UnitPrice)).ToList());
+    private static MerchantOrderResponse ToResponse(MerchantOrderFulfilment work, RiderDelivery? delivery)
+    {
+        var items = work.Order.Lines.Where(l => l.MerchantId == work.MerchantId).OrderBy(l => l.DishId)
+            .Select(l => new MerchantOrderLineResponse(l.DishId, l.DishName, l.Quantity, l.UnitPrice, l.UnitPrice * l.Quantity)).ToList();
+        return new(
+            work.Order.ExternalOrderId,
+            work.MerchantId,
+            work.Order.CustomerId,
+            work.Order.OccurredAtUtc,
+            work.Status.ToString(),
+            work.Order.Status.ToString(),
+            work.RejectionReason,
+            items.Sum(i => i.LineTotal),
+            items.Sum(i => i.Quantity),
+            delivery?.Rider.Name,
+            delivery?.Rider.PhoneNumber,
+            delivery?.Status.ToString(),
+            items,
+            work.Order.AddressId,
+            work.Order.NeedUtensils,
+            work.Order.TotalAmount,
+            work.Order.OccurredAtUtc);
+    }
 }
 
 [ApiController, Route("api/fulfilment/orders"), Authorize(Roles = Roles.Merchant)]

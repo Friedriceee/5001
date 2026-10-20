@@ -51,6 +51,7 @@ public sealed class Rider
     /// <summary>Identity's Rider profile_id; this service never reads Identity's tables.</summary>
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
     public string Zone { get; set; } = "ZoneA";
     public bool IsActive { get; set; } = true;
     public bool IsAvailable { get; set; } = true;

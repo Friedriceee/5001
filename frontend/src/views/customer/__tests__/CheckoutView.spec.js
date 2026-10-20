@@ -96,8 +96,8 @@ const stubs = {
     template: '<input :value="modelValue" :placeholder="placeholder" @input="$emit(\'update:modelValue\', $event.target.value)">',
   },
   'el-option': {
-    props: ['label', 'value'],
-    template: '<option :value="value">{{ label }}</option>',
+    props: ['label', 'value', 'disabled'],
+    template: '<option :value="value" :disabled="disabled">{{ label }}</option>',
   },
   'el-select': {
     props: ['modelValue'],
@@ -176,6 +176,23 @@ describe('CheckoutView', () => {
     await wrapper.findAll('select')[1].setValue('WELCOME5')
 
     expect(mocks.pricing.refreshQuote).toHaveBeenLastCalledWith('WELCOME5')
+  })
+
+  it('disables coupons whose minimum spend is above the discounted food total', async () => {
+    mocks.pricing.quote = { subtotal: 40, merchantDiscount: 5, couponDiscount: 0, deliveryFee: 5, total: 40, selectedCoupon: null }
+    mocks.pricing.selectedCouponCode = ''
+    mocks.pricing.coupons = [{
+      id: 2,
+      code: 'SAVE12',
+      name: 'Save ¥12',
+      minimumSpend: 80,
+      discountAmount: 12,
+      remainingQuantity: 1,
+    }]
+    const wrapper = await mountPage()
+
+    expect(wrapper.vm.canUseCoupon(mocks.pricing.coupons[0])).toBe(false)
+    expect(mocks.pricing.refreshQuote).toHaveBeenCalledWith()
   })
 
   const mountPage = async () => {

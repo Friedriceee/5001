@@ -65,6 +65,14 @@ const canSubmit = computed(() => canPay({
   quoting: pricing.loading,
   submitting: submitting.value,
 }))
+const discountedFoodTotal = computed(() => Math.max(
+  0,
+  Number(pricing.quote?.subtotal ?? 0) - Number(pricing.quote?.merchantDiscount ?? 0),
+))
+
+function canUseCoupon(coupon) {
+  return pricing.hasQuote && discountedFoodTotal.value >= Number(coupon.minimumSpend)
+}
 
 async function loadCheckout() {
   loading.value = true
@@ -95,6 +103,11 @@ async function loadAddresses() {
 }
 
 async function selectCoupon(couponCode) {
+  const coupon = pricing.coupons.find(item => item.code === couponCode)
+  if (coupon && !canUseCoupon(coupon)) {
+    ElMessage.warning(`Spend at least ${formatYuan(coupon.minimumSpend)} to use this coupon.`)
+    return
+  }
   try {
     await pricing.refreshQuote(couponCode)
   } catch {
@@ -297,6 +310,7 @@ onMounted(loadCheckout)
               :key="coupon.id"
               :label="`${coupon.name} — ${formatYuan(coupon.discountAmount)} off ${formatYuan(coupon.minimumSpend)} (${coupon.remainingQuantity} left)`"
               :value="coupon.code"
+              :disabled="!canUseCoupon(coupon)"
             />
           </el-select>
           <p class="field-help">Coupons apply after restaurant discounts. Delivery fees are not discounted.</p>

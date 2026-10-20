@@ -4,6 +4,7 @@ using JiKeDa.Fulfilment.Api.Events;
 using JiKeDa.Fulfilment.Api.Features;
 using JiKeDa.Fulfilment.Api.Features.Delivery;
 using JiKeDa.Fulfilment.Api.Features.Merchant;
+using JiKeDa.Fulfilment.Api.Features.Tracking;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
@@ -28,7 +29,7 @@ public sealed class FulfilmentFlowTests
         await _db.Database.MigrateAsync();
         if (!await _db.Riders.AnyAsync(rider => rider.Id == 1))
         {
-            _db.Riders.Add(new Rider { Id = 1, Name = "Rider One", Zone = "ZoneA", Capacity = 3 });
+            _db.Riders.Add(new Rider { Id = 1, Name = "Rider One", PhoneNumber = "13800000000", Zone = "ZoneA", Capacity = 3 });
             await _db.SaveChangesAsync();
         }
         _events = new FakeOrderEvents();
@@ -79,13 +80,20 @@ public sealed class FulfilmentFlowTests
 
         var order = await _db.Orders.SingleAsync(o => o.ExternalOrderId == 43);
         var rider = await _db.Riders.SingleAsync(r => r.Id == 1);
-        var merchantOrders = await merchant.MineAsync(1, CancellationToken.None);
+        var merchantOrder = (await merchant.MineAsync(1, CancellationToken.None)).Single();
+        var customerOrder = (await new CustomerTrackingService(_db).MineAsync(1, CancellationToken.None)).Single();
         Assert.Multiple((Action)(() =>
         {
             Assert.That(order.Status, Is.EqualTo(FulfilmentOrderStatus.Completed));
             Assert.That(rider.ActiveDeliveryCount, Is.Zero);
-            Assert.That(merchantOrders.Single().Status, Is.EqualTo("ReadyForDelivery"));
-            Assert.That(merchantOrders.Single().OverallStatus, Is.EqualTo("Completed"));
+            Assert.That(merchantOrder.Status, Is.EqualTo("ReadyForDelivery"));
+            Assert.That(merchantOrder.OverallStatus, Is.EqualTo("Completed"));
+            Assert.That(merchantOrder.RiderName, Is.EqualTo("Rider One"));
+            Assert.That(merchantOrder.RiderPhone, Is.EqualTo("13800000000"));
+            Assert.That(merchantOrder.DeliveryStatus, Is.EqualTo("Completed"));
+            Assert.That(customerOrder.RiderName, Is.EqualTo("Rider One"));
+            Assert.That(customerOrder.RiderPhone, Is.EqualTo("13800000000"));
+            Assert.That(customerOrder.DeliveryStatus, Is.EqualTo("Completed"));
         }));
     }
 

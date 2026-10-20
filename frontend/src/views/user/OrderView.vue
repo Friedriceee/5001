@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { listOrders } from '@/api/order'
+import { listCustomerDeliveryTracking } from '@/api/fulfilment'
 import { orderStatusText } from '@/utils/order'
 import { formatYuan } from '@/utils/money'
 
@@ -16,7 +17,23 @@ function formatDate(value) {
 async function loadOrders() {
   loading.value = true
   try {
-    orders.value = await listOrders()
+    const [history, tracking] = await Promise.all([
+      listOrders(),
+      listCustomerDeliveryTracking().catch(() => []),
+    ])
+    const trackingByOrder = new Map(tracking.map(item => [item.orderId, item]))
+    orders.value = history.map((order) => {
+      const courier = trackingByOrder.get(order.id)
+      return {
+        ...order,
+        // Keep the legacy view contract while accepting the microservice names.
+        price: order.price ?? order.total,
+        fulfillmentStatus: order.fulfillmentStatus ?? courier?.kitchenStatus,
+        deliveryStatus: order.deliveryStatus ?? courier?.deliveryStatus,
+        riderName: order.riderName ?? courier?.riderName,
+        riderPhone: order.riderPhone ?? courier?.riderPhone,
+      }
+    })
   } finally {
     loading.value = false
   }
@@ -43,7 +60,7 @@ onMounted(loadOrders)
           <template #default="scope">{{ formatDate(scope.row.createdAtUtc) }}</template>
         </el-table-column>
         <el-table-column label="Amount" width="130">
-          <template #default="scope">{{ formatYuan(scope.row.total) }}</template>
+          <template #default="scope">{{ formatYuan(scope.row.price ?? scope.row.total) }}</template>
         </el-table-column>
         <el-table-column label="Status" min-width="180">
           <template #default="scope">{{ orderStatusText(scope.row.status) }}</template>
