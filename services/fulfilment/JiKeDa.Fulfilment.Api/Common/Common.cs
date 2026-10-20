@@ -31,6 +31,7 @@ public sealed class ApiExceptionFilter(ILogger<ApiExceptionFilter> logger) : IEx
 
 public static class Roles
 {
+    public const string Customer = "Customer";
     public const string Merchant = "Merchant";
     public const string Rider = "Rider";
     public const string Service = "Service";

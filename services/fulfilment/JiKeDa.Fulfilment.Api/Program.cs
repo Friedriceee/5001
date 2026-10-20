@@ -9,6 +9,7 @@ using JiKeDa.Fulfilment.Api.Data;
 using JiKeDa.Fulfilment.Api.Events;
 using JiKeDa.Fulfilment.Api.Features.Delivery;
 using JiKeDa.Fulfilment.Api.Features.Merchant;
+using JiKeDa.Fulfilment.Api.Features.Tracking;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
@@ -60,6 +61,7 @@ builder.Services.AddHttpClient<IOrderEventClient, OrderEventClient>(client =>
 builder.Services.AddScoped<OrderEventConsumer>();
 builder.Services.AddScoped<MerchantFulfilmentService>();
 builder.Services.AddScoped<DeliveryService>();
+builder.Services.AddScoped<CustomerTrackingService>();
 var messagingNamespace = builder.Configuration["Messaging:FullyQualifiedNamespace"];
 if (!string.IsNullOrWhiteSpace(messagingNamespace))
 {
@@ -94,7 +96,7 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", true) && !string.IsN
     // profile_id and is inserted here so the migration remains provider-self-contained.
     var demoRiders = new[]
     {
-        new JiKeDa.Fulfilment.Api.Features.Rider { Id = 1, Name = "Rider One", Zone = "ZoneA", IsActive = true, IsAvailable = true, Capacity = 3 },
+        new JiKeDa.Fulfilment.Api.Features.Rider { Id = 1, Name = "Rider One", PhoneNumber = "13800000000", Zone = "ZoneA", IsActive = true, IsAvailable = true, Capacity = 3 },
         new JiKeDa.Fulfilment.Api.Features.Rider { Id = 2, Name = "Rider Two", Zone = "ZoneA", IsActive = true, IsAvailable = true, Capacity = 3 },
     };
     foreach (var rider in demoRiders.Where(candidate => !db.Riders.Any(existing => existing.Id == candidate.Id)))

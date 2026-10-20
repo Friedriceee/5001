@@ -79,10 +79,17 @@ describe('HTTP authentication and response handling', () => {
   })
 
   it('rejects failed API envelopes and displays their message', () => {
-    expect(() => unwrapApiResponse(
-      { data: { success: false, message: 'Invalid credentials' } },
-      mocks.notifyError,
-    )).toThrow('Invalid credentials')
+    let error
+    try {
+      unwrapApiResponse(
+        { data: { success: false, code: 'MinimumSpendNotMet', message: 'Invalid credentials' } },
+        mocks.notifyError,
+      )
+    } catch (caught) {
+      error = caught
+    }
+    expect(error).toHaveProperty('apiCode', 'MinimumSpendNotMet')
+    expect(error).toHaveProperty('message', 'Invalid credentials')
     expect(mocks.notifyError).toHaveBeenCalledWith('Invalid credentials')
   })
 

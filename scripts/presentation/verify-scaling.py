@@ -68,7 +68,7 @@ def verify_http(release,result):
 def verify_queue(release,result):
     samples=result['samples']
     wait_for(samples,lambda s:s.get('queueReady') and s['replicas'].get('fulfilment')==1 and s.get('queueActive')==0,150)
-    before=count_sql('fulfilment_db','SELECT count(*) FROM "Orders";')
+    before=count_sql('fulfilment_db','SELECT count(*) FROM "FulfilmentOrders";')
     consumer=compose(release,'ps','-q','fulfilment').strip()
     if not consumer or '\n' in consumer: raise RuntimeError('Queue test requires one baseline consumer')
     result.update(controlledPause=True,replayMessages=1000,ordersBefore=int(before))
@@ -95,7 +95,7 @@ def verify_queue(release,result):
         resume_consumer()
     idle=wait_for(samples,lambda s:s.get('queueReady') and s.get('queueActive')==0 and s['replicas'].get('fulfilment')==1,180)
     result.update(after=idle['replicas'],deadLetters=idle.get('queueDeadLetters'),
-                  ordersAfter=int(count_sql('fulfilment_db','SELECT count(*) FROM "Orders";')))
+                  ordersAfter=int(count_sql('fulfilment_db','SELECT count(*) FROM "FulfilmentOrders";')))
     if result['ordersBefore']!=result['ordersAfter'] or result['deadLetters']!=0:
         raise RuntimeError('Replay changed business order count or created dead letters')
 
