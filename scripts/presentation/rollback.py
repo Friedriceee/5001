@@ -5,7 +5,7 @@ The database is NOT silently rolled back. Retain both outcomes, including failur
 import datetime
 import fcntl
 import json
-from deploy import STATE, compose, smoke, install_scaler, run
+from deploy import STATE, APPLICATION_SERVICES, compose, smoke, install_scaler, run
 
 
 def drill():
@@ -18,8 +18,8 @@ def drill():
         fcntl.flock(lock,fcntl.LOCK_EX)
         run(['systemctl','stop','jikeda-autoscaler.service'])
         try:
-            compose(previous,'up','-d','--no-build','--scale','catalog=1','--scale','fulfilment=1',
-                    '--remove-orphans','--wait','--wait-timeout','180',timeout=300)
+            compose(previous,'up','-d','--no-build','--no-deps','--scale','catalog=1','--scale','fulfilment=1',
+                    '--wait','--wait-timeout','180',*APPLICATION_SERVICES,timeout=300)
             smoke(previous)
             result['rollbackSmokePassed']=True
         except Exception as error:
@@ -27,8 +27,8 @@ def drill():
             raise
         finally:
             try:
-                compose(current,'up','-d','--no-build','--scale','catalog=1','--scale','fulfilment=1',
-                        '--wait','--wait-timeout','180',timeout=300)
+                compose(current,'up','-d','--no-build','--no-deps','--scale','catalog=1','--scale','fulfilment=1',
+                        '--wait','--wait-timeout','180',*APPLICATION_SERVICES,timeout=300)
                 smoke(current)
                 result['currentRestoredAndVerified']=True
             except Exception as error:

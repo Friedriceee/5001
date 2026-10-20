@@ -20,6 +20,7 @@ import urllib.request
 STATE = Path('/opt/jikeda/shared')
 RELEASES = Path('/opt/jikeda/releases')
 OPERATIONS = Path('/opt/jikeda/operations/presentation')
+APPLICATION_SERVICES = ('identity', 'catalog', 'order', 'fulfilment', 'gateway', 'frontend')
 # Server jobs must report errors directly, without the distribution's interactive
 # crash collector delaying Azure Run Command after a failed subprocess.
 sys.excepthook = sys.__excepthook__
@@ -238,8 +239,8 @@ def publish(revision, image_tag):
                 stage('Restoring previous application release')
                 if Path('/etc/systemd/system/jikeda-autoscaler.service').exists():
                     run(['systemctl', 'stop', 'jikeda-autoscaler.service'])
-                compose(previous, 'up', '-d', '--no-build', '--scale', 'catalog=1', '--scale', 'fulfilment=1',
-                        '--remove-orphans', '--wait', '--wait-timeout', '180', timeout=300)
+                compose(previous, 'up', '-d', '--no-build', '--no-deps', '--scale', 'catalog=1', '--scale', 'fulfilment=1',
+                        '--wait', '--wait-timeout', '180', *APPLICATION_SERVICES, timeout=300)
                 smoke(previous)
             if (STATE / 'current-release.json').exists() and previous != legacy_release():
                 install_scaler(previous)
