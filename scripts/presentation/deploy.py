@@ -22,7 +22,15 @@ OPERATIONS = Path('/opt/jikeda/operations/presentation')
 
 
 def run(args, **kwargs):
-    return subprocess.run(args, check=True, text=True, capture_output=True, **kwargs).stdout
+    kwargs.setdefault('timeout', 180)
+    result = subprocess.run(args, text=True, capture_output=True, **kwargs)
+    if result.returncode:
+        # Bootstrap output is retained in the root-only server deployment log.
+        # This preserves the failed smoke step without exposing runtime environment values.
+        print(result.stdout[-12000:], flush=True)
+        print(result.stderr[-12000:], flush=True)
+        raise subprocess.CalledProcessError(result.returncode, args)
+    return result.stdout
 
 
 def load_env(path):
@@ -86,7 +94,7 @@ def backup(revision):
     for name in ['identity_db', 'catalog_db', 'order_db', 'fulfilment_db']:
         with open(directory / f'{name}.dump', 'wb') as stream:
             subprocess.run(['docker', 'exec', container, 'pg_dump', '-U', 'platform_admin', '-Fc', name],
-                           stdout=stream, stderr=subprocess.PIPE, check=True)
+                           stdout=stream, stderr=subprocess.PIPE, check=True, timeout=120)
     return str(directory)
 
 
@@ -188,7 +196,7 @@ def publish(revision, image_tag):
             # One migration job per database before any new replica starts.
             for service in ['identity', 'catalog', 'order', 'fulfilment']:
                 compose(release, 'run', '--rm', '--no-deps', '-e', 'Database__MigrateOnStartup=true',
-                        '-e', 'MigrateOnly=true', service, timeout=180)
+                        '-e', 'MigrateOnly=true', '-e', 'APPLICATIONINSIGHTS_CONNECTION_STRING=', service, timeout=90)
             compose(release, 'up', '-d', '--no-build', '--scale', 'catalog=1', '--scale', 'fulfilment=1',
                     '--wait', '--wait-timeout', '180', timeout=300)
             smoke(release)

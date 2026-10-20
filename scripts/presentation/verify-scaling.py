@@ -78,7 +78,7 @@ def verify_queue(release,result):
         fcntl.flock(lock,fcntl.LOCK_EX)
         run(['docker','pause',consumer])
         try:
-            compose(release,'run','--rm','--no-deps','-e','QueueReplayCount=1000','order',timeout=180)
+            compose(release,'run','--rm','--no-deps','-e','QueueReplayCount=1000','-e','APPLICATIONINSIGHTS_CONNECTION_STRING=','order',timeout=180)
             wait_for(samples,lambda s:s.get('queueReady') and s.get('queueActive',0)>=5,40)
         except Exception:
             run(['docker','unpause',consumer]); raise

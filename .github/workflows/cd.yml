@@ -181,9 +181,10 @@ jobs:
           RESOURCE_GROUP: ${{ needs.resolve.outputs.group }}
           VM_NAME: ${{ needs.resolve.outputs.vm }}
           IMAGE_TAG: ${{ needs.resolve.outputs.tag }}
+          REVISION: ${{ needs.resolve.outputs.revision }}
         run: |
-          script="python3 /opt/jikeda/releases/presentation-$IMAGE_TAG/scripts/presentation/rollback.py"
-          az vm run-command invoke --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --command-id RunShellScript --scripts "$script" > /tmp/rollback-result.json
+          python3 scripts/presentation/bootstrap.py --operation rollback --revision "$REVISION" --image-tag "$IMAGE_TAG" > /tmp/rollback.sh
+          az vm run-command invoke --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --command-id RunShellScript --scripts @/tmp/rollback.sh > /tmp/rollback-result.json
           python3 - <<'PY'
           import json
           data=json.load(open('/tmp/rollback-result.json'))
