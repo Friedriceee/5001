@@ -39,15 +39,18 @@ describe('pricing store', () => {
 
   it('keeps a server pricing error for inline checkout feedback', async () => {
     const requestError = Object.assign(new Error('Request failed'), {
-      response: { data: { message: 'Spend at least ¥80.00 after restaurant discounts to use this coupon.' } },
+      apiCode: 'MinimumSpendNotMet',
+      response: { data: { code: 'MinimumSpendNotMet', message: 'Spend at least ¥80.00 after restaurant discounts to use this coupon.' } },
     })
     api.getPricingQuote.mockRejectedValueOnce(requestError)
     const pricing = usePricingStore()
+    pricing.quote = { subtotal: 20, merchantDiscount: 0, total: 25 }
 
     await expect(pricing.refreshQuote('SAVE12')).rejects.toThrow('Request failed')
 
-    expect(pricing.quote).toBeNull()
-    expect(pricing.error).toContain('Spend at least ¥80.00')
+    expect(pricing.quote).toEqual({ subtotal: 20, merchantDiscount: 0, total: 25 })
+    expect(pricing.selectedCouponCode).toBe('')
+    expect(pricing.error).toBe('')
     expect(pricing.loading).toBe(false)
   })
 

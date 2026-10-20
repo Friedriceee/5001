@@ -28,6 +28,7 @@ export function unwrapApiResponse(response, notify = () => {}) {
       const message = body.message || 'Request failed.'
       notify(message)
       const error = new Error(message)
+      error.apiCode = body.code
       error.userNotified = true
       throw error
     }

@@ -16,6 +16,7 @@ export const usePricingStore = defineStore('pricing', () => {
   }
 
   async function refreshQuote(couponCode = selectedCouponCode.value) {
+    const previousQuote = quote.value
     selectedCouponCode.value = couponCode || ''
     loading.value = true
     error.value = ''
@@ -23,10 +24,19 @@ export const usePricingStore = defineStore('pricing', () => {
       quote.value = await getPricingQuote(selectedCouponCode.value || null)
       return quote.value
     } catch (requestError) {
-      quote.value = null
-      error.value = requestError.response?.data?.message
-        || requestError.message
-        || 'Could not calculate your order total.'
+      const errorCode = requestError.apiCode || requestError.response?.data?.code
+      if (errorCode === 'MinimumSpendNotMet') {
+        // An ineligible coupon must not erase the last valid quote and turn the
+        // summary into zeroes. Clear the selection and keep the cart payable.
+        selectedCouponCode.value = ''
+        quote.value = previousQuote
+        error.value = ''
+      } else {
+        quote.value = null
+        error.value = requestError.response?.data?.message
+          || requestError.message
+          || 'Could not calculate your order total.'
+      }
       throw requestError
     } finally {
       loading.value = false
